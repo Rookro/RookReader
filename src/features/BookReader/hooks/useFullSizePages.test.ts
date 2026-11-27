@@ -1,7 +1,7 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getImageFull } from "../../../bindings/binaryApi";
+import { getImageMagnified } from "../../../bindings/binaryApi";
 import { useFullSizePages } from "./useFullSizePages";
 
 /** A `[width][height][data]` payload, which is what the backend answers with. */
@@ -21,37 +21,37 @@ describe("useFullSizePages", () => {
     nextUrl = 0;
     global.URL.createObjectURL = vi.fn(() => `blob:full-${++nextUrl}`);
     global.URL.revokeObjectURL = vi.fn();
-    vi.mocked(getImageFull).mockResolvedValue(payload(2000, 3000));
+    vi.mocked(getImageMagnified).mockResolvedValue(payload(2000, 3000));
   });
 
   it("asks for nothing while the loupe is closed", async () => {
-    const { result } = renderHook(() => useFullSizePages("path", entries, false));
+    const { result } = renderHook(() => useFullSizePages("path", entries, 2, false));
 
     // A full-size page is several times the weight of a displayed one, and the loupe is
     // held open for a moment at a time.
     await waitFor(() => expect(result.current.size).toBe(0));
-    expect(getImageFull).not.toHaveBeenCalled();
+    expect(getImageMagnified).not.toHaveBeenCalled();
   });
 
   it("asks for nothing when no page is on screen", async () => {
-    renderHook(() => useFullSizePages("path", [], true));
+    renderHook(() => useFullSizePages("path", [], 2, true));
 
     await waitFor(() => expect(warn).not.toHaveBeenCalled());
-    expect(getImageFull).not.toHaveBeenCalled();
+    expect(getImageMagnified).not.toHaveBeenCalled();
   });
 
-  it("fetches every page on screen while the loupe is open", async () => {
-    const { result } = renderHook(() => useFullSizePages("path", entries, true));
+  it("asks for each page at the zoom", async () => {
+    const { result } = renderHook(() => useFullSizePages("path", entries, 2, true));
 
     await waitFor(() => expect(result.current.size).toBe(2));
-    expect(getImageFull).toHaveBeenCalledWith("path", "p1.jpg");
-    expect(getImageFull).toHaveBeenCalledWith("path", "p2.jpg");
+    expect(getImageMagnified).toHaveBeenCalledWith("path", "p1.jpg", 2);
+    expect(getImageMagnified).toHaveBeenCalledWith("path", "p2.jpg", 2);
     expect(result.current.get("p1.jpg")).toMatch(/^blob:full-/);
   });
 
   it("revokes the copies when the loupe closes", async () => {
     const { result, rerender } = renderHook(
-      ({ open }: { open: boolean }) => useFullSizePages("path", entries, open),
+      ({ open }: { open: boolean }) => useFullSizePages("path", entries, 2, open),
       { initialProps: { open: true } },
     );
     await waitFor(() => expect(result.current.size).toBe(2));
@@ -66,7 +66,7 @@ describe("useFullSizePages", () => {
 
   it("replaces the copies when the page turns", async () => {
     const { result, rerender } = renderHook(
-      ({ shown }: { shown: string[] }) => useFullSizePages("path", shown, true),
+      ({ shown }: { shown: string[] }) => useFullSizePages("path", shown, 2, true),
       { initialProps: { shown: ["p1.jpg"] } },
     );
     await waitFor(() => expect(result.current.size).toBe(1));
@@ -80,11 +80,11 @@ describe("useFullSizePages", () => {
   });
 
   it("leaves a page out when it cannot be read at full size", async () => {
-    vi.mocked(getImageFull)
+    vi.mocked(getImageMagnified)
       .mockRejectedValueOnce(new Error("decode failed"))
       .mockResolvedValueOnce(payload(2000, 3000));
 
-    const { result } = renderHook(() => useFullSizePages("path", entries, true));
+    const { result } = renderHook(() => useFullSizePages("path", entries, 2, true));
 
     // The caller falls back to the displayed page: softer under the lens, never blank.
     await waitFor(() => expect(warn).toHaveBeenCalled());
@@ -94,14 +94,14 @@ describe("useFullSizePages", () => {
 
   it("revokes a copy that arrives after the loupe has closed", async () => {
     let deliver: (buffer: ArrayBuffer) => void = () => {};
-    vi.mocked(getImageFull).mockReturnValueOnce(
+    vi.mocked(getImageMagnified).mockReturnValueOnce(
       new Promise((resolve) => {
         deliver = resolve;
       }),
     );
 
     const { rerender } = renderHook(
-      ({ open }: { open: boolean }) => useFullSizePages("path", ["p1.jpg"], open),
+      ({ open }: { open: boolean }) => useFullSizePages("path", ["p1.jpg"], 2, open),
       { initialProps: { open: true } },
     );
     rerender({ open: false });

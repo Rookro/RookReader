@@ -25,15 +25,19 @@ describe("binaryApi", () => {
     await expect(binaryApi.getImage("path", "e", 1)).rejects.toThrow(CommandError);
   });
 
-  it("getImageFull should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryApi.getImageFull("path", "entry");
-    expect(invoke).toHaveBeenCalledWith("get_image_full", { path: "path", entryName: "entry" });
+  it("getImageMagnified should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(8));
+    await binaryApi.getImageMagnified("path", "entry", 2.5);
+    expect(invoke).toHaveBeenCalledWith("get_image_magnified", {
+      path: "path",
+      entryName: "entry",
+      zoom: 2.5,
+    });
   });
 
-  it("getImageFull should throw CommandError on failure", async () => {
+  it("getImageMagnified should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryApi.getImageFull("path", "e")).rejects.toThrow(CommandError);
+    await expect(binaryApi.getImageMagnified("path", "e", 2)).rejects.toThrow(CommandError);
   });
 
   it("getImagePreview should call invoke", async () => {

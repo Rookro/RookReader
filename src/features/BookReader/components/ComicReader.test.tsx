@@ -202,6 +202,7 @@ describe("ComicReader", () => {
       expect(vi.mocked(fullSizePages.useFullSizePages)).toHaveBeenCalledWith(
         "book.zip",
         ["p1.jpg", "p2.jpg"],
+        2,
         true,
       );
     });

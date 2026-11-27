@@ -27,6 +27,7 @@ use crate::{
         thumbnail::{encode_thumbnail, generate_thumbnail, ThumbnailSpec, COVER, PREVIEW},
         types::{is_animated, Image},
     },
+    settings::{LOUPE_ZOOM_MAX, LOUPE_ZOOM_MIN},
 };
 
 /// The box a page is fitted into, in pixels. `u32::MAX` on an axis means nothing bounds it.
@@ -123,14 +124,36 @@ impl Pipeline {
         }
     }
 
-    /// The box a page is fitted into when the viewer magnifies it.
+    /// The box a page is fitted into for the loupe at `zoom`: the display box times the
+    /// zoom, so the lens draws the page at 1:1 wherever the screen does.
     ///
-    /// The loupe draws the page past 1:1, so the viewport does not bound it. The reader's
-    /// own height cap still does.
-    pub fn full_fit(&self) -> Fit {
+    /// `zoom` is clamped into the setting's bounds; NaN is taken as the minimum. At 1 this
+    /// is exactly [`Pipeline::fit`], which the cache already holds.
+    ///
+    /// # Arguments
+    ///
+    /// * `zoom` - The loupe's magnification factor.
+    ///
+    /// # Returns
+    ///
+    /// The box to fit the magnified page into, capped by `max_image_height`.
+    pub fn magnified_fit(&self, zoom: f64) -> Fit {
+        let zoom = if zoom.is_nan() {
+            LOUPE_ZOOM_MIN
+        } else {
+            zoom.clamp(LOUPE_ZOOM_MIN, LOUPE_ZOOM_MAX)
+        };
+        let Some(display) = self.display else {
+            return Fit {
+                width: u32::MAX,
+                height: self.capped(u32::MAX),
+            };
+        };
+        // `as` saturates, so a huge display at zoom 100 cannot wrap.
+        let scaled = |side: u32| (side as f64 * zoom).round() as u32;
         Fit {
-            width: u32::MAX,
-            height: self.capped(u32::MAX),
+            width: scaled(display.width),
+            height: self.capped(scaled(display.height)),
         }
     }
 
@@ -154,7 +177,7 @@ impl Pipeline {
     /// # Arguments
     ///
     /// * `page` - The page, as the reader delivered it.
-    /// * `fit` - The box to render into, from [`Pipeline::fit`] or [`Pipeline::full_fit`].
+    /// * `fit` - The box to render into, from [`Pipeline::fit`] or [`Pipeline::magnified_fit`].
     ///
     /// # Returns
     ///
@@ -534,28 +557,82 @@ mod tests {
     }
 
     #[test]
-    fn full_fit_ignores_the_box_but_honours_the_height_cap() {
-        let uncapped = displaying(2, 2);
-        assert_eq!(uncapped.full_fit(), Fit::UNBOUNDED);
-        let image = uncapped
-            .page(PageData::Encoded(opaque_png()), uncapped.full_fit())
-            .unwrap()
-            .image;
-        assert_eq!((image.width, image.height), (4, 2));
+    fn the_magnified_box_is_the_display_box_times_the_zoom() {
+        let pipeline = displaying(400, 300);
+        assert_eq!(pipeline.magnified_fit(1.0), pipeline.fit());
+        assert_eq!(
+            pipeline.magnified_fit(2.0),
+            Fit {
+                width: 800,
+                height: 600
+            }
+        );
+        assert_eq!(
+            pipeline.magnified_fit(1.5),
+            Fit {
+                width: 600,
+                height: 450
+            }
+        );
+        // 401 * 1.5 = 601.5 rounds to 602.
+        assert_eq!(
+            displaying(401, 300).magnified_fit(1.5),
+            Fit {
+                width: 602,
+                height: 450
+            }
+        );
+    }
 
+    #[test]
+    fn the_magnified_box_keeps_the_height_cap_and_the_zoom_bounds() {
         let capped = Pipeline {
             display: Some(Fit {
-                width: 2,
-                height: 2,
+                width: 400,
+                height: 300,
             }),
-            max_image_height: 1,
+            max_image_height: 500,
             resize_method: ResizeFilter::Bilinear,
         };
         assert_eq!(
-            capped.full_fit(),
+            capped.magnified_fit(2.0),
+            Fit {
+                width: 800,
+                height: 500
+            }
+        );
+
+        let pipeline = displaying(400, 300);
+        assert_eq!(pipeline.magnified_fit(0.5), pipeline.fit());
+        assert_eq!(pipeline.magnified_fit(f64::NAN), pipeline.fit());
+        assert_eq!(pipeline.magnified_fit(f64::NEG_INFINITY), pipeline.fit());
+        assert_eq!(
+            pipeline.magnified_fit(1000.0),
+            pipeline.magnified_fit(100.0)
+        );
+        assert_eq!(
+            pipeline.magnified_fit(f64::INFINITY),
+            pipeline.magnified_fit(100.0)
+        );
+        assert_eq!(
+            pipeline.magnified_fit(100.0),
+            Fit {
+                width: 40_000,
+                height: 30_000
+            }
+        );
+        // Saturates rather than wrapping.
+        assert_eq!(displaying(u32::MAX, 1).magnified_fit(100.0).width, u32::MAX);
+    }
+
+    #[test]
+    fn without_a_display_the_magnified_box_is_bounded_by_the_height_cap_only() {
+        assert_eq!(pipeline(0).magnified_fit(2.0), Fit::UNBOUNDED);
+        assert_eq!(
+            pipeline(7).magnified_fit(2.0),
             Fit {
                 width: u32::MAX,
-                height: 1
+                height: 7
             }
         );
     }

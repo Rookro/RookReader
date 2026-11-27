@@ -132,7 +132,12 @@ export default function ComicReader() {
     }
     return shown;
   }, [entries, index, displayedLayout?.isSpread]);
-  const fullSizeUrls = useFullSizePages(containerPath, displayedEntries, isLoupeEnabled);
+  const fullSizeUrls = useFullSizePages(
+    containerPath,
+    displayedEntries,
+    loupeSettings.zoom,
+    isLoupeEnabled,
+  );
 
   const [showSpinner, setShowSpinner] = useState(false);
 

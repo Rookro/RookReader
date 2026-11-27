@@ -39,7 +39,7 @@ vi.mock("../../bindings/api", async () => {
 
 vi.mock("../../bindings/binaryApi", () => ({
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
-  getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  getImageMagnified: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   readNovelFile: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getEntriesInDir: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),

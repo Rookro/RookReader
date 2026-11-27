@@ -10,6 +10,7 @@ import {
   createImageCacheItem,
   detectCoverPresence,
   fetchImageBlob,
+  fetchImageMagnifiedBlob,
   fetchImagePreviewBlob,
   ImageCacheItem,
   revokeCacheItemUrls,
@@ -356,6 +357,36 @@ describe("ImageUtils", () => {
         new CommandError(ErrorCode.image, "fetch failed"),
       );
       await expect(fetchImageBlob("path", "file", 1)).rejects.toBeInstanceOf(CommandError);
+    });
+  });
+
+  describe("fetchImageMagnifiedBlob", () => {
+    it("returns undefined without calling the backend when path or entry is empty", async () => {
+      expect(await fetchImageMagnifiedBlob("", "file", 2)).toBeUndefined();
+      expect(await fetchImageMagnifiedBlob("path", "", 2)).toBeUndefined();
+      expect(binaryApi.getImageMagnified).not.toHaveBeenCalled();
+    });
+
+    it("forwards the zoom to getImageMagnified and parses the image", async () => {
+      const buffer = new ArrayBuffer(9);
+      const view = new DataView(buffer);
+      view.setUint32(0, 600);
+      view.setUint32(4, 450);
+      vi.mocked(binaryApi.getImageMagnified).mockResolvedValue(buffer);
+
+      const result = await fetchImageMagnifiedBlob("path", "file", 1.5);
+
+      expect(binaryApi.getImageMagnified).toHaveBeenCalledWith("path", "file", 1.5);
+      expect(result).toBeInstanceOf(Image);
+      expect(result?.width).toBe(600);
+      expect(result?.height).toBe(450);
+    });
+
+    it("rejects with the command error when getImageMagnified fails", async () => {
+      vi.mocked(binaryApi.getImageMagnified).mockRejectedValue(
+        new CommandError(ErrorCode.image, "magnify failed"),
+      );
+      await expect(fetchImageMagnifiedBlob("path", "file", 2)).rejects.toBeInstanceOf(CommandError);
     });
   });
 

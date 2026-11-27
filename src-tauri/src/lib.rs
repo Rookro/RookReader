@@ -135,7 +135,7 @@ macro_rules! binary_commands {
 
 binary_commands![
     container_commands::get_image,
-    container_commands::get_image_full,
+    container_commands::get_image_magnified,
     container_commands::get_image_preview,
     container_commands::read_novel_file,
     directory_commands::get_entries_in_dir,
@@ -341,7 +341,7 @@ mod tests {
             crate::BINARY_COMMANDS,
             [
                 "get_image",
-                "get_image_full",
+                "get_image_magnified",
                 "get_image_preview",
                 "read_novel_file",
                 "get_entries_in_dir",

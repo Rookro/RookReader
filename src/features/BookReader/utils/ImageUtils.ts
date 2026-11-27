@@ -1,4 +1,4 @@
-import { getImage, getImageFull, getImagePreview } from "../../../bindings/binaryApi";
+import { getImage, getImageMagnified, getImagePreview } from "../../../bindings/binaryApi";
 import type { ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 
@@ -115,24 +115,26 @@ export const fetchImageBlob = async (
 };
 
 /**
- * Fetches a page at its full size, for the loupe.
+ * Fetches a page fitted to the reader's viewport times `zoom`, for the loupe.
  *
  * The pair of {@link fetchImageBlob}: that one asks for the page fitted to the reader's
- * viewport, this one for the page whole.
+ * viewport, this one for the same box scaled by `zoom`.
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
+ * @param zoom The loupe's magnification factor.
  * @returns The fetched image, or undefined when there was nothing to ask for.
  * @throws {CommandError} When the backend could not produce the image.
  */
-export const fetchImageFullBlob = async (
+export const fetchImageMagnifiedBlob = async (
   containerPath: string,
   entryName: string,
+  zoom: number,
 ): Promise<Image | undefined> => {
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  const response = await getImageFull(containerPath, entryName);
+  const response = await getImageMagnified(containerPath, entryName, zoom);
   return new Image(response);
 };
 

@@ -246,12 +246,18 @@ fn default_image_cache_size_mib() -> u64 {
     1024
 }
 
+/// Minimum magnification factor of the loupe (`1.0` = no magnification).
+pub const LOUPE_ZOOM_MIN: f64 = 1.0;
+
+/// Maximum magnification factor of the loupe.
+pub const LOUPE_ZOOM_MAX: f64 = 100.0;
+
 /// Configuration for the Loupe (Magnifier) feature.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LoupeSettings {
     /// The magnification zoom level of the loupe (`1.0` = no magnification).
-    #[garde(range(min = 1.0, max = 100.0), custom(finite_f64))]
+    #[garde(range(min = LOUPE_ZOOM_MIN, max = LOUPE_ZOOM_MAX), custom(finite_f64))]
     #[serde(default = "default_loupe_zoom")]
     pub zoom: f64,
     /// The radius (size) of the loupe.
