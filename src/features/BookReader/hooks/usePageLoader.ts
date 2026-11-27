@@ -305,7 +305,10 @@ export const usePageLoader = ({
           const firstImg = cache.get(entries[index]);
           if (firstImg) {
             reportDisplayed();
-            setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
+            setLayoutState({
+              layout: buildSinglePageLayout(firstImg, entries[index]),
+              path: containerPath,
+            });
           }
         }
         if (previewPromises.length === 0) {

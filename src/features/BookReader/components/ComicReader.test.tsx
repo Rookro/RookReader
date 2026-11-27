@@ -178,7 +178,9 @@ describe("ComicReader", () => {
         displayedLayout: {
           isSpread: true,
           firstImage: { url: "blob:p1", width: 100, height: 100 },
+          firstEntry: "p1.jpg",
           secondImage: { url: "blob:p2", width: 100, height: 100 },
+          secondEntry: "p2.jpg",
           nextIndexIncrement: 2,
         },
         moveForward: vi.fn(),
@@ -230,6 +232,44 @@ describe("ComicReader", () => {
       const sources = screen.getAllByRole("img").map((img) => img.getAttribute("src"));
       expect(sources).toContain("blob:p1-full");
       expect(sources.filter((src) => src === "blob:p2")).toHaveLength(2);
+    });
+
+    it("magnifies the pages on screen, not the ones the index has moved to", () => {
+      vi.mocked(loupe.useLoupe).mockReturnValue({
+        isLoupeEnabled: true,
+        loupePos: { x: 10, y: 10 },
+        containerRef: { current: null },
+        handleMouseMove: vi.fn(),
+        toggleLoupe: vi.fn(),
+      });
+      vi.mocked(fullSizePages.useFullSizePages).mockReturnValue(new Map());
+      vi.mocked(viewerController.useViewerController).mockReturnValue({
+        displayedLayout: {
+          isSpread: false,
+          firstImage: { url: "blob:p1", width: 100, height: 100 },
+          firstEntry: "p1.jpg",
+          nextIndexIncrement: 1,
+        },
+        moveForward: vi.fn(),
+        moveBack: vi.fn(),
+        moveToFirst: vi.fn(),
+        moveToLast: vi.fn(),
+        isImageLoading: true,
+      });
+
+      const preloadedState = createBasePreloadedState();
+      preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+      preloadedState.reader.index = 2;
+      preloadedState.reader.history = ["book.zip"];
+      preloadedState.reader.historyIndex = 0;
+      renderWithProviders(<ProvidedComicReader />, { preloadedState });
+
+      expect(vi.mocked(fullSizePages.useFullSizePages)).toHaveBeenCalledWith(
+        "book.zip",
+        ["p1.jpg"],
+        2,
+        true,
+      );
     });
   });
 

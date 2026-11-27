@@ -4,6 +4,7 @@ import * as binaryApi from "../../../bindings/binaryApi";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 import {
+  buildSinglePageLayout,
   buildUnitChain,
   buildUnitLayout,
   createBlobUrl,
@@ -81,7 +82,9 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, noFailures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         secondImage: portraitNext,
+        secondEntry: "p1",
         firstError: undefined,
         secondError: undefined,
         isSpread: true,
@@ -104,6 +107,7 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, noFailures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         firstError: undefined,
         isSpread: false,
         nextIndexIncrement: 1,
@@ -118,7 +122,9 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, failures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         secondImage: undefined,
+        secondEntry: "p1",
         firstError: undefined,
         secondError: ErrorCode.image,
         isSpread: true,
@@ -141,6 +147,8 @@ describe("ImageUtils", () => {
       );
       expect(layout?.firstError).toBe(ErrorCode.entryNotFound);
       expect(layout?.secondError).toBe(ErrorCode.image);
+      expect(layout?.firstEntry).toBe("p0");
+      expect(layout?.secondEntry).toBe("p1");
     });
 
     // A page that came out of its preview is on screen, so it has nothing to explain
@@ -151,7 +159,17 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, failures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         firstError: undefined,
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    it("records the entry on a degraded single-page layout", () => {
+      expect(buildSinglePageLayout(portrait, "a.jpg")).toEqual({
+        firstImage: portrait,
+        firstEntry: "a.jpg",
         isSpread: false,
         nextIndexIncrement: 1,
       });
