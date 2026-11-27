@@ -120,7 +120,7 @@ Which pages share a screen is worked out from where each page falls in the print
 
 ### Magnifier (Loupe)
 
-Magnify part of a page to read small text or inspect fine detail. Press the configured key or mouse button — the **middle mouse button** by default — to toggle the loupe on, then move the cursor over the page to magnify the area under it. Press again to turn it off. The loupe magnifies the page at its **full original size**, so detail that was shrunk to fit the window becomes readable. You can change the **zoom level** (default 2×), the **size (radius, default 200 px)**, and the **toggle key/button** (the middle, back or forward mouse button, or a keyboard key — either can be combined with Ctrl, Alt, Shift or Meta) in **Settings → Reader**.
+Magnify part of a page to read small text or inspect fine detail. Press the configured key or mouse button — the **middle mouse button** by default — to toggle the loupe on, then move the cursor over the page to magnify the area under it. Press again to turn it off. The loupe draws the page with as much of its original detail as the zoom level can show, so detail that was shrunk to fit the window becomes readable. You can change the **zoom level** (default 2×), the **size (radius, default 200 px)**, and the **toggle key/button** (the middle, back or forward mouse button, or a keyboard key — either can be combined with Ctrl, Alt, Shift or Meta) in **Settings → Reader**.
 
 ## Continuous Reading (Auto-open Adjacent Book)
 

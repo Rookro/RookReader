@@ -10,13 +10,21 @@ import * as pageNavigation from "../hooks/usePageNavigation";
 import * as viewerController from "../hooks/useViewerController";
 import { ReaderInputProvider } from "../input/ReaderInputContext";
 import ComicReader from "./ComicReader";
+import type { LoupeProps } from "./Loupe";
 
-// Mock the hooks
+const { loupeMock } = vi.hoisted(() => ({
+  loupeMock: vi.fn(({ children }: LoupeProps) => <>{children}</>),
+}));
+
+// Mock the hooks and Loupe
 vi.mock("../hooks/useViewerController");
 vi.mock("../hooks/usePageNavigation");
 vi.mock("../hooks/useAdjacentBookNavigation");
 vi.mock("../hooks/useMagnifiedPages");
 vi.mock("../hooks/useLoupe");
+vi.mock("./Loupe", () => ({
+  default: (props: LoupeProps) => loupeMock(props),
+}));
 
 /** The reader inside the input provider that BookReader mounts around it. */
 const ProvidedComicReader = () => (
@@ -50,10 +58,15 @@ describe("ComicReader", () => {
     // The loupe is closed by default, which is how every test but the loupe's own sees it.
     vi.mocked(loupe.useLoupe).mockReturnValue({
       isLoupeEnabled: false,
-      loupePos: { x: 0, y: 0 },
       containerRef: { current: null },
       handleMouseMove: vi.fn(),
       toggleLoupe: vi.fn(),
+      lens: {
+        positionRef: { current: { x: 0, y: 0 } },
+        readerSizeRef: { current: { width: 0, height: 0 } },
+        drawRef: { current: null },
+        drawNow: vi.fn(),
+      },
     });
     vi.mocked(magnifiedPages.useMagnifiedPages).mockReturnValue(new Map());
 
@@ -174,15 +187,24 @@ describe("ComicReader", () => {
       return element;
     };
 
-    /** The open loupe, over a spread of `p1.jpg` and `p2.jpg`. */
-    const openOverASpread = (magnified: ReadonlyMap<string, HTMLImageElement>) => {
+    const mockOpenLoupe = () => {
       vi.mocked(loupe.useLoupe).mockReturnValue({
         isLoupeEnabled: true,
-        loupePos: { x: 10, y: 10 },
         containerRef: { current: null },
         handleMouseMove: vi.fn(),
         toggleLoupe: vi.fn(),
+        lens: {
+          positionRef: { current: { x: 10, y: 10 } },
+          readerSizeRef: { current: { width: 1000, height: 800 } },
+          drawRef: { current: null },
+          drawNow: vi.fn(),
+        },
       });
+    };
+
+    /** The open loupe, over a spread of `p1.jpg` and `p2.jpg`. */
+    const openOverASpread = (magnified: ReadonlyMap<string, HTMLImageElement>) => {
+      mockOpenLoupe();
       vi.mocked(magnifiedPages.useMagnifiedPages).mockReturnValue(magnified);
       vi.mocked(viewerController.useViewerController).mockReturnValue({
         displayedLayout: {
@@ -222,39 +244,23 @@ describe("ComicReader", () => {
       );
     });
 
-    it("shows the full-size pages under the lens", () => {
-      openOverASpread(
-        new Map([
-          ["p1.jpg", decodedImage("blob:p1-full")],
-          ["p2.jpg", decodedImage("blob:p2-full")],
-        ]),
-      );
+    it("gives the lens the pages on screen with their magnified copies", () => {
+      const p1Full = decodedImage("blob:p1-full");
+      openOverASpread(new Map([["p1.jpg", p1Full]]));
 
-      // Twice each: once behind the lens at the displayed size, once under it at full
-      // size. Scaling the displayed page would add no detail.
-      const sources = screen.getAllByRole("img").map((img) => img.getAttribute("src"));
-      expect(sources).toContain("blob:p1");
-      expect(sources).toContain("blob:p1-full");
-      expect(sources).toContain("blob:p2-full");
-    });
-
-    it("falls back to the displayed page when a full-size copy is missing", () => {
-      openOverASpread(new Map([["p1.jpg", decodedImage("blob:p1-full")]]));
-
-      // Softer under the lens than it could be, but never blank.
-      const sources = screen.getAllByRole("img").map((img) => img.getAttribute("src"));
-      expect(sources).toContain("blob:p1-full");
-      expect(sources.filter((src) => src === "blob:p2")).toHaveLength(2);
+      const props = loupeMock.mock.calls.at(-1)?.[0] as LoupeProps;
+      expect(props.pages).toHaveLength(2);
+      // RTL by default: left slot holds p2.jpg (no magnified copy yet), right holds p1.jpg.
+      expect(props.pages[0].slot.entry).toBe("p2.jpg");
+      expect(props.pages[0].magnified).toBeUndefined();
+      expect(props.pages[0].displayed()).toBe(screen.getByAltText("Left Page"));
+      expect(props.pages[1].slot.entry).toBe("p1.jpg");
+      expect(props.pages[1].magnified).toBe(p1Full);
+      expect(props.pages[1].displayed()).toBe(screen.getByAltText("Right Page"));
     });
 
     it("magnifies the pages on screen, not the ones the index has moved to", () => {
-      vi.mocked(loupe.useLoupe).mockReturnValue({
-        isLoupeEnabled: true,
-        loupePos: { x: 10, y: 10 },
-        containerRef: { current: null },
-        handleMouseMove: vi.fn(),
-        toggleLoupe: vi.fn(),
-      });
+      mockOpenLoupe();
       vi.mocked(magnifiedPages.useMagnifiedPages).mockReturnValue(new Map());
       vi.mocked(viewerController.useViewerController).mockReturnValue({
         displayedLayout: {
@@ -289,13 +295,7 @@ describe("ComicReader", () => {
     });
 
     it("never requests a page that failed", () => {
-      vi.mocked(loupe.useLoupe).mockReturnValue({
-        isLoupeEnabled: true,
-        loupePos: { x: 10, y: 10 },
-        containerRef: { current: null },
-        handleMouseMove: vi.fn(),
-        toggleLoupe: vi.fn(),
-      });
+      mockOpenLoupe();
       vi.mocked(magnifiedPages.useMagnifiedPages).mockReturnValue(new Map());
       vi.mocked(viewerController.useViewerController).mockReturnValue({
         displayedLayout: {

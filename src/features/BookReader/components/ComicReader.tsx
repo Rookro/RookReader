@@ -1,6 +1,6 @@
 import { Box, CircularProgress } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { useAdjacentBookNavigation } from "../hooks/useAdjacentBookNavigation";
 import { useDisplaySize } from "../hooks/useDisplaySize";
@@ -11,26 +11,36 @@ import { useReadingDirection } from "../hooks/useReadingDirection";
 import { useViewerController } from "../hooks/useViewerController";
 import { useRegisterReaderActions } from "../input/ReaderInputContext";
 import type { ViewerSettings } from "../utils/ImageUtils";
-import { OBJECT_POSITION, type PageSlot, pageSlots, SLOT_ALT } from "../utils/pageSlots";
+import {
+  OBJECT_POSITION,
+  type PageSlot,
+  pageSlots,
+  SLOT_ALT,
+  type SlotRole,
+} from "../utils/pageSlots";
 import AdjacentBookConfirmDialog from "./AdjacentBookConfirmDialog";
-import Loupe from "./Loupe";
+import Loupe, { type LensPage } from "./Loupe";
 import PageErrorMessage from "./PageErrorMessage";
 
 /**
  * Draws one slot of the reader: the image, or the reason it could not be loaded.
  *
  * @param slot The slot describing the page's place and alignment.
- * @param url The image URL to draw in this slot, if any.
+ * @param imageRefs Map populated with each slot's mounted `<img>` element for the loupe.
  * @returns The page element, or null while it is still loading.
  */
-const renderPage = (slot: PageSlot, url: string | undefined) => {
+const renderPage = (slot: PageSlot, imageRefs: Map<SlotRole, HTMLImageElement>) => {
   const width = `${slot.width * 100}%`;
-  if (url) {
+  if (slot.url) {
     return (
       <Box
         key={slot.role}
         component="img"
-        src={url}
+        ref={(element: HTMLImageElement | null) => {
+          if (element) imageRefs.set(slot.role, element);
+          else imageRefs.delete(slot.role);
+        }}
+        src={slot.url}
         alt={SLOT_ALT[slot.role]}
         sx={{
           width,
@@ -101,9 +111,10 @@ export default function ComicReader() {
   const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
     useAdjacentBookNavigation();
 
-  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, toggleLoupe } =
+  const { isLoupeEnabled, containerRef, handleMouseMove, toggleLoupe, lens } =
     useLoupe(containerPath);
   const displaySize = useDisplaySize(containerRef);
+  const imageRefs = useRef(new Map<SlotRole, HTMLImageElement>());
 
   const {
     displayedLayout,
@@ -209,43 +220,39 @@ export default function ComicReader() {
     />
   );
 
+  const slots = useMemo(
+    () => (displayedLayout ? pageSlots(displayedLayout, settings.direction) : []),
+    [displayedLayout, settings.direction],
+  );
+  const lensPages = useMemo<LensPage[]>(
+    () =>
+      slots
+        .filter((slot) => slot.url !== undefined)
+        .map((slot) => ({
+          slot,
+          displayed: () => imageRefs.current.get(slot.role),
+          magnified: slot.entry ? magnified.get(slot.entry) : undefined,
+        })),
+    [slots, magnified],
+  );
+
   const pages = () => {
     if (!displayedLayout) {
       return spinnerOverlay;
     }
 
-    const slots = pageSlots(displayedLayout, settings.direction);
-
-    /**
-     * The pages as one pane, taking each slot's URL from `urlFor`.
-     *
-     * Written once and called twice: the lens shows the same pages in the same places
-     * as the reader, only magnified, so anything the two did differently would be visible
-     * as the lens passing over a page.
-     */
-    const pane = (urlFor: (slot: PageSlot) => string | undefined) => (
-      <Box sx={{ display: "flex", width: "100%", height: "100%" }}>
-        {spinnerOverlay}
-        {slots.map((slot) => renderPage(slot, urlFor(slot)))}
-      </Box>
-    );
-
     return (
       <Loupe
         isLoupeEnabled={isLoupeEnabled}
-        loupePos={loupePos}
-        containerRef={containerRef}
+        lens={lens}
+        pages={lensPages}
         zoom={loupeSettings.zoom}
         radius={loupeSettings.radius}
-        magnified={
-          // A page whose magnified copy has not arrived falls back to the displayed one:
-          // softer under the lens, never blank.
-          magnified.size > 0
-            ? pane((slot) => (slot.entry && magnified.get(slot.entry)?.src) ?? slot.url)
-            : undefined
-        }
       >
-        {pane((slot) => slot.url)}
+        <Box sx={{ display: "flex", width: "100%", height: "100%" }}>
+          {spinnerOverlay}
+          {slots.map((slot) => renderPage(slot, imageRefs.current))}
+        </Box>
       </Loupe>
     );
   };
