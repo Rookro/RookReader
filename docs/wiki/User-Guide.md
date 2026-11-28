@@ -2,6 +2,8 @@
 
 Welcome to the RookReader User Guide. This document provides detailed information on how to use the application.
 
+**Contents:** [Installation & Setup](#installation--setup) · [Basic Usage](#basic-usage) · [Page Display](#page-display) · [Continuous Reading](#continuous-reading-auto-open-adjacent-book) · [Bookmarks](#bookmarks) · [Bookshelf Management](#bookshelf-management) · [Tagging System](#tagging-system) · [Reading History & Resume](#reading-history--resume) · [Novels (EPUB)](#novels-epub) · [Settings & Customization](#settings--customization)
+
 ## Installation & Setup
 
 Pre-built binaries and installers for RookReader are available on our [GitHub Releases page](https://github.com/Rookro/RookReader/releases/latest).
@@ -17,6 +19,8 @@ We provide various packages on the Releases page depending on your distribution:
 - **Fedora/RHEL/openSUSE**: Download the `.rpm` file and install via `sudo dnf install <filename>`.
 - **Arch Linux/Manjaro**: Download `PKGBUILD` from the `PKGBUILD/` directory of the repository (nothing else is needed) and run `makepkg -si` in the directory containing it.
 - **Universal**: Download the `.AppImage` file, make it executable (`chmod +x <filename>`), and run it.
+
+If you encounter startup issues on Linux (such as missing WebKit2GTK dependencies or a blank AppImage window on Wayland), see [FAQ & Troubleshooting](FAQ-&-Troubleshooting#troubleshooting).
 
 ## Basic Usage
 
