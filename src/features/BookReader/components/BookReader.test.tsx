@@ -1,3 +1,4 @@
+import { watchImmediate } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -118,6 +119,17 @@ describe("BookReader", () => {
     renderWithProviders(<BookReader />, { preloadedState: state });
 
     await waitFor(() => expect(api.getRecentlyReadBooks).toHaveBeenCalledTimes(1));
+  });
+
+  it("watches the navigator folder even while FileNavigator is not mounted", async () => {
+    const state = createBasePreloadedState();
+    state.settings.fileNavigator.watchDirectoryChanges = true;
+    state.fileNavigator.history = ["/a"];
+    state.fileNavigator.historyIndex = 0;
+
+    renderWithProviders(<BookReader />, { preloadedState: state });
+
+    await waitFor(() => expect(watchImmediate).toHaveBeenCalledWith("/a", expect.any(Function)));
   });
 
   it("should update container when a file is dropped", async () => {

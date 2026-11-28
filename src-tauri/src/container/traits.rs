@@ -223,10 +223,12 @@ impl dyn Container {
     ///
     /// Returns `true` if the filename ends with a supported extension, `false` otherwise.
     pub fn is_supported_format(filename: &str) -> bool {
-        let lowercase_name = filename.to_lowercase();
+        let Some((_, ext)) = filename.rsplit_once('.') else {
+            return false;
+        };
         SUPPORTED_EXTENSIONS
             .iter()
-            .any(|ext| lowercase_name.ends_with(&format!(".{ext}")))
+            .any(|supported| ext.eq_ignore_ascii_case(supported))
     }
 
     /// Whether the container holds no readable pages. An EPUB novel never does: its text
@@ -257,6 +259,8 @@ mod tests {
     #[case("comic.CBZ", true)]
     #[case("comic.cbr", true)]
     #[case("comic.CBR", true)]
+    #[case("novel.epub", true)]
+    #[case("novel.EPUB", true)]
     #[case("test.pdf.rar", true)]
     #[case(".pdf", true)]
     #[case(".rar", true)]
@@ -266,6 +270,8 @@ mod tests {
     #[case("file.png", false)]
     #[case("file.pdf_test", false)]
     #[case("file.rar.test", false)]
+    #[case("file.zip.", false)]
+    #[case("dir.zip/foo", false)]
     #[case("document", false)]
     #[case("", false)]
     fn test_container_is_supported_format(#[case] filename: &str, #[case] expected: bool) {

@@ -20,7 +20,7 @@ import { warn } from "@tauri-apps/plugin-log";
 import type React from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppDispatch, useAppSelector } from "../../../../store/store";
+import { useAppDispatch, useAppSelector, useAppStore } from "../../../../store/store";
 import type { SortOrder } from "../../../../types/AppSettings";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 import { updateSettings } from "../../../Settings/slice";
@@ -46,9 +46,9 @@ export default function NavBar({ searchInputRef }: NavBarProps) {
   const history = useAppSelector((state) => state.fileNavigator.history);
   const historyIndex = useAppSelector((state) => state.fileNavigator.historyIndex);
   const searchText = useAppSelector((state) => state.fileNavigator.searchText);
-  const entries = useAppSelector((state) => state.fileNavigator.entries);
   const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const dispatch = useAppDispatch();
+  const store = useAppStore();
 
   const currentPath = history[historyIndex] ?? "";
 
@@ -63,12 +63,25 @@ export default function NavBar({ searchInputRef }: NavBarProps) {
     [dispatch, fileNavigatorSettings.homeDirectory],
   );
 
+  // Load the home folder once on startup when no folder has been opened yet. Re-check
+  // `historyIndex` after awaiting `homeDir()` so a concurrent restore or drop wins.
   useEffect(() => {
-    if (entries.length === 0) {
-      const dirPath = historyIndex === -1 ? undefined : history[historyIndex];
-      setDirParh(dirPath);
+    if (historyIndex !== -1) {
+      return;
     }
-  }, [entries.length, historyIndex, history, setDirParh]);
+    let cancelled = false;
+    const loadInitialDir = async () => {
+      const dirPath = fileNavigatorSettings.homeDirectory || (await homeDir());
+      if (cancelled || store.getState().fileNavigator.historyIndex !== -1) {
+        return;
+      }
+      dispatch(loadDirectory({ dirPath }));
+    };
+    loadInitialDir();
+    return () => {
+      cancelled = true;
+    };
+  }, [historyIndex, fileNavigatorSettings.homeDirectory, dispatch, store]);
 
   const formAction = useCallback(
     (formData: FormData) => {

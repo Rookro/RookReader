@@ -8,14 +8,12 @@ import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createReaderActionSpies, TestReader } from "../../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as FileNavigatorSlice from "../../fileNavigatorSlice";
-import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
 import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import * as ReadReducer from "../../slice";
 import FileNavigator from "./FileNavigator";
 
 // Mock hooks
-vi.mock("../../hooks/useDirectoryWatcher", () => ({ useDirectoryWatcher: vi.fn() }));
 vi.mock("../../hooks/useFileSelection", () => ({
   useFileSelection: vi.fn(),
 }));
@@ -130,30 +128,6 @@ describe("FileNavigator", () => {
     expect(ReadReducer.openBook).toHaveBeenCalledTimes(1);
   });
 
-  it("reads the watched folder again in the background when it changes", () => {
-    const preloadedState = createBasePreloadedState();
-    preloadedState.fileNavigator.history = ["/a"];
-    preloadedState.fileNavigator.historyIndex = 0;
-    preloadedState.fileNavigator.pendingPath = "/a";
-
-    renderWithProviders(<FileNavigator />, { preloadedState });
-    const [watchedPath, onChange] = vi.mocked(useDirectoryWatcher).mock.calls.at(-1) ?? [];
-    expect(watchedPath).toBe("/a");
-
-    // The watcher waits for what the callback returns.
-    let result: unknown;
-    act(() => {
-      result = onChange?.();
-    });
-
-    expect(result).toEqual({ type: "fileNavigator/loadDirectory" });
-    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledTimes(1);
-    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
-      dirPath: "/a",
-      background: true,
-    });
-  });
-
   // Moving to a folder already starts its listing; the history effect must not list it again
   it("does not list a folder whose listing is already in flight", () => {
     const preloadedState = createBasePreloadedState();
@@ -165,6 +139,50 @@ describe("FileNavigator", () => {
 
     expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
+
+  // Switching to another tab unmounts the panel, but the store still holds the folder's listing
+  it("does not reload a folder whose listing is already loaded across unmount and remount", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.fileNavigator.history = ["/a"];
+    preloadedState.fileNavigator.historyIndex = 0;
+    preloadedState.fileNavigator.loadedPath = "/a";
+    preloadedState.fileNavigator.entries = [
+      { name: "book.zip", isDirectory: false, lastModified: 0 },
+    ];
+
+    const { store, unmount } = renderWithProviders(<FileNavigator />, { preloadedState });
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+    expect(screen.getByRole("option", { name: "book.zip" })).toBeInTheDocument();
+
+    unmount();
+    renderWithProviders(<FileNavigator />, { store });
+
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+    expect(screen.getByRole("option", { name: "book.zip" })).toBeInTheDocument();
+  });
+
+  // Another folder's load (foreground or background) is still pending: supersede it for /a
+  it.each([
+    { label: "foreground", isLoading: true },
+    { label: "background", isLoading: false },
+  ])(
+    "reloads the current folder when another folder's $label load is in flight",
+    ({ isLoading }) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.fileNavigator.history = ["/a", "/b"];
+      preloadedState.fileNavigator.historyIndex = 0;
+      preloadedState.fileNavigator.loadedPath = "/a";
+      preloadedState.fileNavigator.pendingPath = "/b";
+      preloadedState.fileNavigator.isLoading = isLoading;
+
+      renderWithProviders(<FileNavigator />, { preloadedState });
+
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
+        dirPath: "/a",
+        forceUpdate: true,
+      });
+    },
+  );
 
   // Back and Forward only move the history, so the effect is what lists the folder
   it("lists the current folder when nothing is loading it", () => {
@@ -323,7 +341,7 @@ describe("FileNavigator", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.fileNavigator.history = ["/dir"];
       preloadedState.fileNavigator.historyIndex = 0;
-      preloadedState.fileNavigator.pendingPath = "/dir";
+      preloadedState.fileNavigator.loadedPath = "/dir";
       preloadedState.fileNavigator.entries = entries;
       preloadedState.reader.history = ["/dir/book.zip"];
       preloadedState.reader.historyIndex = 0;
@@ -424,7 +442,7 @@ describe("FileNavigator", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.fileNavigator.history = [path];
       preloadedState.fileNavigator.historyIndex = 0;
-      preloadedState.fileNavigator.pendingPath = path;
+      preloadedState.fileNavigator.loadedPath = path;
       preloadedState.fileNavigator.entries = entries;
       return preloadedState;
     };
@@ -606,6 +624,8 @@ describe("FileNavigator", () => {
 
     it("lands on a row, not the search field, after a reload", async () => {
       const preloadedState = inFolder("/dir", []);
+      preloadedState.fileNavigator.loadedPath = null;
+      preloadedState.fileNavigator.pendingPath = "/dir";
       preloadedState.fileNavigator.isLoading = true;
       preloadedState.fileNavigator.searchText = "b";
       const { store } = renderInPane(preloadedState);
@@ -618,10 +638,10 @@ describe("FileNavigator", () => {
       expect(activeOption()).toBe(screen.getByRole("option", { name: "b.zip" }));
     });
 
-    it("lands on a row after Ctrl+Tab into the panel reads the folder again", async () => {
-      // Without `pendingPath`, mounting reads the folder again, as every switch to the panel does.
+    it("lands on a row after Ctrl+Tab into the panel reads an unloaded folder", async () => {
+      // Without `loadedPath` or `pendingPath`, mounting reads the folder.
       const preloadedState = inFolder("/dir", [file("a.zip"), file("b.zip")]);
-      preloadedState.fileNavigator.pendingPath = null;
+      preloadedState.fileNavigator.loadedPath = null;
       const actions = createReaderActionSpies();
       const ui = (showPanel: boolean) => (
         <ReaderInputProvider>
@@ -641,6 +661,31 @@ describe("FileNavigator", () => {
 
       expect(listbox()).toHaveFocus();
       expect(activeOption()).toBe(screen.getByRole("option", { name: "a.zip" }));
+    });
+
+    it("lands on a row immediately on Ctrl+Tab when already loaded, then follows to the open book", async () => {
+      let select: (name: string | null) => void = () => {};
+      vi.mocked(useFileSelection).mockImplementation((_fileHistory, _fileHistoryIndex, set) => {
+        select = set;
+      });
+      const preloadedState = inFolder("/dir", [file("a.zip"), file("b.zip")]);
+      const actions = createReaderActionSpies();
+      const ui = (showPanel: boolean) => (
+        <ReaderInputProvider>
+          <TestReader actions={actions} />
+          <div data-side-pane="">{showPanel && <FileNavigator />}</div>
+        </ReaderInputProvider>
+      );
+      const { rerender } = renderWithProviders(ui(false), { preloadedState });
+      await user.keyboard("{F6}");
+      rerender(ui(true));
+
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+      expect(listbox()).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "a.zip" }));
+
+      act(() => select("b.zip"));
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "b.zip" }));
     });
 
     it("lands in the search field when the search hides every entry", async () => {
