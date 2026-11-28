@@ -231,7 +231,7 @@ describe("ComicReader", () => {
       return renderWithProviders(<ProvidedComicReader />, { preloadedState });
     };
 
-    it("asks for the pages on screen at full size", () => {
+    it("asks for the pages on screen at the configured zoom", () => {
       openOverASpread(new Map());
 
       expect(vi.mocked(magnifiedPages.useMagnifiedPages)).toHaveBeenCalledWith(

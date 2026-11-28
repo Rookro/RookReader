@@ -628,7 +628,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_stale_path_is_refused_a_full_size_page() {
+    async fn a_stale_path_is_refused_a_magnified_page() {
         let app = tauri::test::mock_app();
         let _watch = manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
