@@ -25,7 +25,8 @@
     "mk-licenses-dir": "node -e \"require('fs').mkdirSync('src-tauri/target/dependencies/licenses', { recursive: true })\"",
     "licenses:backend": "cargo about generate --manifest-path src-tauri/Cargo.toml src-tauri/about.hbs --output-file src-tauri/target/dependencies/licenses/backend-licenses.html",
     "licenses:frontend": "generate-license-file --input package.json --output src-tauri/target/dependencies/licenses/frontend-licenses.txt --overwrite",
-    "release:body": "tsx scripts/generate-release-body.ts"
+    "release:body": "tsx scripts/generate-release-body.ts",
+    "screenshots": "node scripts/screenshots/capture.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
