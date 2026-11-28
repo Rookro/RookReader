@@ -83,7 +83,7 @@ graph TD
 
 We highly recommend using DevContainers for a consistent development environment. The container already includes Rust, Node.js, `sqlx-cli`, `cargo-about` and vcpkg, and builds libdav1d (for AVIF pages) when it is created.
 
-If you work natively instead, you need: Node.js (v22 or higher), Rust via `rustup`, the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS, `sqlx-cli` (`cargo install sqlx-cli`), `cargo-about` (`cargo install cargo-about --locked --features cli`) and, on Windows, vcpkg for libdav1d — see `CONTRIBUTING.md`; on Linux use the Dev Container. `cargo-about` is mandatory: `npm run dev` and `npm run build` generate the third-party license files with it and fail without it.
+If you work natively instead, you need: Node.js (v22 or higher), Rust via `rustup`, the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS, `sqlx-cli` (`cargo install sqlx-cli`), `cargo-about` (`cargo install cargo-about --locked --features cli`) and, on Windows, vcpkg for libdav1d — see [CONTRIBUTING.md](https://github.com/Rookro/RookReader/blob/main/CONTRIBUTING.md); on Linux use the Dev Container. `cargo-about` is mandatory: `npm run dev` and `npm run build` generate the third-party license files with it and fail without it.
 
 1. Clone the repository: `git clone https://github.com/Rookro/RookReader.git`
 1. Open the folder in VS Code (or another DevContainer-compatible editor).
@@ -190,4 +190,4 @@ Run the same checks CI enforces before opening a Pull Request:
 Notes:
 - The E2E suite builds the app with the `e2e-test` Cargo feature, which embeds a WebDriver server; no external `tauri-driver` or `msedgedriver` is required. On Linux without a display run it as `xvfb-run --auto-servernum -- npm run test:e2e`. E2E runs against an isolated temporary data directory (passed through the `ROOKREADER_DATA_DIR` environment variable, which debug builds honour too), so your real library is untouched.
 - `npm run licenses` generates the third-party license files with `cargo-about` and `generate-license-file`; CI runs it explicitly, and `dev`, `build` and `test:backend` run it for you.
-- On Debian/Ubuntu the native build needs `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf` (plus `xvfb` for headless E2E) — the list CI and the devcontainer install.
+- On Debian/Ubuntu the native build needs `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf nasm` (plus `xvfb` for headless E2E) — the list CI and the devcontainer install.

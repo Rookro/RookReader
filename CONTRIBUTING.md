@@ -108,7 +108,7 @@ Run the same checks that CI enforces, so your PR passes on the first try:
 * **`cargo-about` not found / license generation fails:** Make sure `cargo-about` is installed (see [Prerequisites](#prerequisites)). It runs automatically as part of `dev` and `build`.
 * **Linux system dependencies:** On Debian/Ubuntu you may need:
   ```bash
-  sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+  sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf nasm
   ```
   (add `xvfb` if you want to run E2E tests headlessly).
 * **E2E tests:** They use an embedded WebDriver provider, so no external `tauri-driver`/`msedgedriver` setup is required. On Linux, run them under `xvfb-run` if you don't have a display.

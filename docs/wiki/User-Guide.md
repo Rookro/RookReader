@@ -2,6 +2,8 @@
 
 Welcome to the RookReader User Guide. This document provides detailed information on how to use the application.
 
+**Contents:** [Installation & Setup](#installation--setup) · [Basic Usage](#basic-usage) · [Page Display](#page-display) · [Continuous Reading](#continuous-reading-auto-open-adjacent-book) · [Bookmarks](#bookmarks) · [Bookshelf Management](#bookshelf-management) · [Tagging System](#tagging-system) · [Reading History & Resume](#reading-history--resume) · [Novels (EPUB)](#novels-epub) · [Settings & Customization](#settings--customization)
+
 ## Installation & Setup
 
 Pre-built binaries and installers for RookReader are available on our [GitHub Releases page](https://github.com/Rookro/RookReader/releases/latest).
@@ -17,6 +19,8 @@ We provide various packages on the Releases page depending on your distribution:
 - **Fedora/RHEL/openSUSE**: Download the `.rpm` file and install via `sudo dnf install <filename>`.
 - **Arch Linux/Manjaro**: Download `PKGBUILD` from the `PKGBUILD/` directory of the repository (nothing else is needed) and run `makepkg -si` in the directory containing it.
 - **Universal**: Download the `.AppImage` file, make it executable (`chmod +x <filename>`), and run it.
+
+If you encounter startup issues on Linux (such as missing WebKit2GTK dependencies or a blank AppImage window on Wayland), see [FAQ & Troubleshooting](FAQ-&-Troubleshooting#troubleshooting).
 
 ## Basic Usage
 
@@ -38,6 +42,8 @@ Password-protected files inside a zip/cbz archive are skipped: the rest of the a
 
 ### Reader Layout
 
+![Reader layout](https://github.com/Rookro/RookReader/blob/main/docs/images/reader_screenshot.png?raw=true)
+
 The reader is made up of four areas:
 - **Top app bar** — from left to right:
   - **Move to Bookshelf** — switch to the bookshelf view.
@@ -48,7 +54,7 @@ The reader is made up of four areas:
   - **Shift the spread pairing** — shift which pages share a screen by one page; click again to reset (see *Two-Page Spread* below). Disabled in single-page view.
   - **Direction toggle** — switch the current book between **Right-to-Left** (for Japanese comics) and **Left-to-Right**. The choice is remembered **for that book**. Disabled for EPUB novels, which follow their own writing direction (see *Novels (EPUB)* below).
   - **Settings** — open the settings window.
-- **Side panels** (left): switch between them with the side tabs. Click a tab to open its panel. Clicking the **active tab** again collapses the panel, and clicking once more reopens it — useful for maximizing the reading area. The panels can also be used from the keyboard (see *Keyboard Shortcuts & Controls*).
+- **Side panels** (left): switch between them with the side tabs (from top to bottom). Click a tab to open its panel. Clicking the **active tab** again collapses the panel, and clicking once more reopens it — useful for maximizing the reading area. The panels can also be used from the keyboard (see *Keyboard Shortcuts & Controls*).
   - **File Navigator** — browse folders and archives, and open files. Its own bar has **Home folder**, **Back**, **Forward**, **Up one level** and **Refresh** buttons, a **sort order** menu (Name↑/↓, Date↑/↓), a path box for the folder being shown, and a search box that filters the list.
   - **Pages** — lists the pages of the current book by file name; click one to jump to it. For EPUB novels it lists the sections, named after the table of contents. In two-page view both pages currently on screen are highlighted.
   - **History** — recently read books (shown only when reading history is enabled). Click an entry to open it; a search box filters the list, and right-clicking an entry offers **Open** and **Remove history**. **Clear all history** in the panel's header removes every entry after a confirmation; this also resets the saved reading positions and the progress shown on bookshelf covers, while books, bookmarks, collections, tags and series are kept. The same action is in **Settings → Reader**, where it is available while reading history is off.
@@ -156,6 +162,8 @@ Save any number of positions in a book and jump back to them later.
 ## Bookshelf Management
 
 Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelves** view, where your library is organized into **collections** and **tags**. The left pane lists them; **All Books** shows every registered book. Press **Return to reader** to go back.
+
+![Bookshelf view](https://github.com/Rookro/RookReader/blob/main/docs/images/bookshelf_screenshot.png?raw=true)
 
 - **Create a collection**: press **New collection** next to the *Collections* heading and give it a name and a custom icon.
 - **Choose a book's collections** with **Set collections** (right-click a book, or select several books first). The collections the book is already in are checked; uncheck one to take the book out of it. With several books selected, a collection that only some of them are in is shown as partly checked; leave it that way to keep it as it is on each book. Press **New collection** below the list to create a collection without leaving the dialog; it is checked, so **OK** adds the books to it.

@@ -10,6 +10,6 @@ The application is specifically designed and optimized for the reading experienc
 - **[FAQ & Troubleshooting](FAQ-&-Troubleshooting)** — data locations, logs, and Linux tips.
 - **[Developer Guide](Developer-Guide)** — architecture, development setup, and contribution workflow.
 
-![reader screenshot](https://github.com/Rookro/RookReader/blob/main/docs/images/reader_screenshot.png)
+![reader screenshot](https://github.com/Rookro/RookReader/blob/main/docs/images/reader_screenshot.png?raw=true)
 
-![bookshelf screenshot](https://github.com/Rookro/RookReader/blob/main/docs/images/bookshelf_screenshot.png)
+![bookshelf screenshot](https://github.com/Rookro/RookReader/blob/main/docs/images/bookshelf_screenshot.png?raw=true)
