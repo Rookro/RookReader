@@ -9,17 +9,36 @@ import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
+ * Returns whether the File Navigator already holds `dirPath`'s listing (with no other load
+ * in flight) or is currently loading `dirPath`.
+ *
+ * Shared by {@link loadDirectory}'s `condition` and the File Navigator panel's mount effect
+ * so both agree on when a folder read can be skipped.
+ *
+ * @param state - The current File Navigator state fields governing readiness.
+ * @param dirPath - The folder path to check.
+ * @returns `true` when `dirPath` is already loaded (and idle) or already pending.
+ */
+export const isDirectoryReadyOrPending = (
+  state: Pick<FileNavigatorState, "pendingPath" | "loadedPath" | "isLoading">,
+  dirPath: string,
+): boolean =>
+  state.pendingPath === dirPath ||
+  (state.pendingPath === null && !state.isLoading && state.loadedPath === dirPath);
+
+/**
  * Moves the File Navigator to a directory and lists its entries, or reads the folder on
  * screen again in the background.
  *
  * @param args - The arguments for loading the directory.
  * @param args.dirPath - The absolute path of the directory to load.
- * @param args.forceUpdate - If true, forces a fetch even if the path is already the current one.
+ * @param args.forceUpdate - If true, forces a fetch even if the path is already loaded or pending.
  * @param args.background - If true, reads the folder on screen again and keeps its list
  * shown meanwhile, instead of the loading indicator. Nothing is dispatched when `dirPath`
  * is not the folder on screen.
  * @returns A thunk that resolves to the directory path and its entries. When the folder is
- * already shown and neither `forceUpdate` nor `background` is set, nothing is dispatched.
+ * already shown and loaded (with no other load in flight) or already pending, and neither
+ * `forceUpdate` nor `background` is set, nothing is dispatched.
  */
 export const loadDirectory = createAppAsyncThunk(
   "fileNavigator/loadDirectory",
@@ -57,7 +76,9 @@ export const loadDirectory = createAppAsyncThunk(
     }
   },
   {
-    // Already showing this folder: dispatch nothing, so no request supersedes one in flight.
+    // Already showing this folder with its listing loaded (or in flight): dispatch nothing,
+    // so no request supersedes one in flight. If the folder previously failed to load
+    // (`loadedPath` does not match) or another folder is still pending, allow the retry.
     // A background read is the exception: its newer listing supersedes one in flight.
     condition: ({ dirPath, forceUpdate, background }, { getState }) => {
       const { fileNavigator } = getState();
@@ -65,7 +86,11 @@ export const loadDirectory = createAppAsyncThunk(
       if (background) {
         return isShown;
       }
-      return Boolean(forceUpdate) || !dirPath || !isShown;
+      return (
+        Boolean(forceUpdate) ||
+        !dirPath ||
+        !(isShown && isDirectoryReadyOrPending(fileNavigator, dirPath))
+      );
     },
   },
 );
@@ -80,6 +105,8 @@ const initialState = {
   requestId: null as string | null,
   /** The folder that request lists, until it settles. */
   pendingPath: null as string | null,
+  /** The folder `entries` holds, or null when no listing is loaded. */
+  loadedPath: null as string | null,
 };
 
 /** The File Navigator's state: the folder history and the listing of the current folder. */
@@ -153,6 +180,7 @@ export const fileNavigatorSlice = createSlice({
         // as the user might have navigated away before the load finished.
         if (state.history[state.historyIndex] === action.payload.path) {
           state.entries = action.payload.entries;
+          state.loadedPath = action.payload.path;
         }
         state.isLoading = false;
       })
@@ -161,7 +189,10 @@ export const fileNavigatorSlice = createSlice({
           return;
         }
         state.pendingPath = null;
-        state.entries = [];
+        if (state.history[state.historyIndex] === action.meta.arg.dirPath) {
+          state.entries = [];
+          state.loadedPath = null;
+        }
         state.isLoading = false;
       });
   },

@@ -71,6 +71,7 @@ export function createBasePreloadedState(): RootState {
       isLoading: false,
       requestId: null,
       pendingPath: null,
+      loadedPath: null,
     },
     collection: {
       collections: [],

@@ -143,16 +143,122 @@ describe("FileNavigatorReducer", () => {
         expect(state.pendingPath).toBeNull();
       });
 
+      it("tracks the folder whose listing is loaded until a matching load fails", () => {
+        let state = fileNavigatorReducer(undefined, directoryPathOpened("/a"));
+        expect(state.loadedPath).toBeNull();
+
+        state = fileNavigatorReducer(state, loadDirectory.pending("r1", { dirPath: "/a" }));
+        state = fileNavigatorReducer(
+          state,
+          loadDirectory.fulfilled({ path: "/a", entries: [] }, "r1", { dirPath: "/a" }),
+        );
+        expect(state.loadedPath).toBe("/a");
+
+        state = fileNavigatorReducer(state, loadDirectory.pending("r2", { dirPath: "/a" }));
+        state = fileNavigatorReducer(
+          state,
+          loadDirectory.rejected(null, "r2", { dirPath: "/a" }, { code: ErrorCode.io }),
+        );
+        expect(state.loadedPath).toBeNull();
+      });
+
+      it("keeps loadedPath when fulfilled arrives after navigating away or when superseded", () => {
+        const base = structuredClone(fileNavigatorReducer(undefined, { type: "unknown" }));
+        base.history = ["/a", "/b"];
+        base.historyIndex = 1;
+        base.entries = [createMockDirEntry({ name: "kept" })];
+        base.loadedPath = "/a";
+        base.requestId = "r2";
+        base.isLoading = true;
+
+        // Superseded request
+        let state = fileNavigatorReducer(
+          base,
+          loadDirectory.fulfilled({ path: "/b", entries: [] }, "r1", { dirPath: "/b" }),
+        );
+        expect(state.loadedPath).toBe("/a");
+        expect(state.entries).toHaveLength(1);
+
+        // Matching requestId, but user already moved to /b while /a settled
+        state = fileNavigatorReducer(
+          base,
+          loadDirectory.fulfilled({ path: "/a", entries: [] }, "r2", { dirPath: "/a" }),
+        );
+        expect(state.loadedPath).toBe("/a");
+        expect(state.entries).toHaveLength(1);
+        expect(state.isLoading).toBe(false);
+      });
+
+      it("keeps entries and loadedPath when rejected arrives for a different or empty path", async () => {
+        const preloaded = createBasePreloadedState();
+        preloaded.fileNavigator.history = ["/a"];
+        preloaded.fileNavigator.historyIndex = 0;
+        preloaded.fileNavigator.entries = [createMockDirEntry({ name: "kept.zip" })];
+        preloaded.fileNavigator.loadedPath = "/a";
+        store = createTestStore(preloaded);
+
+        // Empty-path rejection must not clear the current folder's listing.
+        await store.dispatch(loadDirectory({ dirPath: "" }));
+        expect(store.getState().fileNavigator.entries).toHaveLength(1);
+        expect(store.getState().fileNavigator.loadedPath).toBe("/a");
+
+        // Rejection for another path (e.g. after Back/Forward) must also leave /a intact.
+        const afterOtherReject = fileNavigatorReducer(
+          {
+            ...store.getState().fileNavigator,
+            requestId: "r-other",
+            pendingPath: "/other",
+            isLoading: true,
+          },
+          loadDirectory.rejected(null, "r-other", { dirPath: "/other" }, { code: ErrorCode.io }),
+        );
+        expect(afterOtherReject.entries).toHaveLength(1);
+        expect(afterOtherReject.loadedPath).toBe("/a");
+        expect(afterOtherReject.pendingPath).toBeNull();
+        expect(afterOtherReject.isLoading).toBe(false);
+      });
+
       it("dispatches nothing when the folder is already shown", async () => {
         const preloaded = createBasePreloadedState();
         preloaded.fileNavigator.history = ["/a"];
         preloaded.fileNavigator.historyIndex = 0;
+        preloaded.fileNavigator.loadedPath = "/a";
         store = createTestStore(preloaded);
 
         await store.dispatch(loadDirectory({ dirPath: "/a" }));
 
         expect(binaryApi.getEntriesInDir).not.toHaveBeenCalled();
         expect(store.getState().fileNavigator.requestId).toBeNull();
+      });
+
+      it("reloads the current folder without forceUpdate when loadedPath is null", async () => {
+        vi.mocked(binaryApi.getEntriesInDir).mockResolvedValueOnce(new ArrayBuffer(0));
+        const preloaded = createBasePreloadedState();
+        preloaded.fileNavigator.history = ["/a"];
+        preloaded.fileNavigator.historyIndex = 0;
+        preloaded.fileNavigator.loadedPath = null;
+        store = createTestStore(preloaded);
+
+        await store.dispatch(loadDirectory({ dirPath: "/a" }));
+
+        expect(binaryApi.getEntriesInDir).toHaveBeenCalledWith("/a");
+        expect(store.getState().fileNavigator.loadedPath).toBe("/a");
+      });
+
+      it("reloads the current folder without forceUpdate when another folder's background load is pending", async () => {
+        vi.mocked(binaryApi.getEntriesInDir).mockResolvedValueOnce(new ArrayBuffer(0));
+        const preloaded = createBasePreloadedState();
+        preloaded.fileNavigator.history = ["/a"];
+        preloaded.fileNavigator.historyIndex = 0;
+        preloaded.fileNavigator.loadedPath = "/a";
+        preloaded.fileNavigator.pendingPath = "/b";
+        preloaded.fileNavigator.isLoading = false;
+        store = createTestStore(preloaded);
+
+        await store.dispatch(loadDirectory({ dirPath: "/a" }));
+
+        expect(binaryApi.getEntriesInDir).toHaveBeenCalledWith("/a");
+        expect(store.getState().fileNavigator.pendingPath).toBeNull();
       });
 
       it("a superseded listing fails silently", async () => {
@@ -180,6 +286,7 @@ describe("FileNavigatorReducer", () => {
         preloaded.fileNavigator.history = [path];
         preloaded.fileNavigator.historyIndex = 0;
         preloaded.fileNavigator.entries = [createMockDirEntry({ name: "old" })];
+        preloaded.fileNavigator.loadedPath = path;
         return createTestStore(preloaded);
       };
 
@@ -202,6 +309,7 @@ describe("FileNavigatorReducer", () => {
         await refresh;
 
         expect(store.getState().fileNavigator.entries).toEqual([]);
+        expect(store.getState().fileNavigator.loadedPath).toBe("/a");
         expect(store.getState().fileNavigator.isLoading).toBe(false);
       });
 
@@ -236,6 +344,7 @@ describe("FileNavigatorReducer", () => {
         await store.dispatch(loadDirectory({ dirPath: "/a", background: true }));
 
         expect(store.getState().fileNavigator.entries).toEqual([]);
+        expect(store.getState().fileNavigator.loadedPath).toBeNull();
         expect(store.getState().fileNavigator.isLoading).toBe(false);
         expect(store.getState().errorNotification.pending).toEqual([
           { context: "explorer", code: ErrorCode.io },
@@ -278,7 +387,16 @@ describe("FileNavigatorReducer", () => {
       // Verify that update is skipped if already at the path
       it("should handle return undefined if already at the path", async () => {
         const preloadedState = {
-          fileNavigator: { history: ["/current"], historyIndex: 0, entries: [] as DirEntry[] },
+          fileNavigator: {
+            history: ["/current"],
+            historyIndex: 0,
+            entries: [] as DirEntry[],
+            searchText: "",
+            isLoading: false,
+            requestId: null,
+            pendingPath: null,
+            loadedPath: "/current",
+          },
         } as RootState;
         store = createTestStore(preloadedState);
 
