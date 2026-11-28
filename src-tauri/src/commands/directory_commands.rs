@@ -5,6 +5,8 @@ use tauri::ipc::Response;
 use crate::blocking::run_blocking;
 use crate::container::{archive_listing, archive_path, traits::Container};
 use crate::error::Result;
+use crate::perf;
+use crate::perf::Span;
 
 /// Reads the contents of a directory and returns a list of its entries.
 ///
@@ -43,11 +45,26 @@ use crate::error::Result;
 #[tauri::command()]
 pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);
+    let span = Span::start();
     let dir_path = dir_path.to_string();
     // On a blocking thread: a folder on a NAS or a spun-down disk must not stall every
     // other IPC call while it is read.
-    let buffer = run_blocking(move || list_entries(&dir_path)).await?;
-    Ok(Response::new(buffer))
+    let listing = run_blocking(move || list_entries(&dir_path)).await?;
+    perf!(
+        span,
+        "list_dir",
+        "entries={} scanned={}",
+        listing.entries,
+        listing.scanned
+    );
+    Ok(Response::new(listing.buffer))
+}
+
+/// Encoded directory listing along with counts for performance logging.
+struct DirListing {
+    buffer: Vec<u8>,
+    entries: usize,
+    scanned: usize,
 }
 
 /// Lists the sub-folders and supported books directly inside `dir_path`, encoded as
@@ -59,24 +76,34 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
 ///
 /// # Returns
 ///
-/// The encoded entries.
+/// A [`DirListing`] holding the encoded entries and scan counts.
 ///
 /// # Errors
 ///
 /// Returns an `Err` if the directory or archive cannot be read.
-fn list_entries(dir_path: &str) -> Result<Vec<u8>> {
-    // Browsing inside an archive: either a folder within it, or the archive file itself
-    // (its root). Real filesystem paths are matched first by `archive_path::resolve`.
-    if let Some(location) = archive_path::resolve(dir_path) {
-        return list_archive_dirs(&location.archive, &location.inner_dir);
-    }
-    let path = Path::new(dir_path);
-    if path.is_file() && archive_path::is_navigable_archive(path) {
-        return list_archive_dirs(path, "");
-    }
+fn list_entries(dir_path: &str) -> Result<DirListing> {
+    // Open the directory directly first: on a real folder (including one literally named
+    // `comic.zip`), this avoids extra `stat` round-trips over a NAS. Only fall back to
+    // archive resolution when `read_dir` fails.
+    let dir_iter = match read_dir(dir_path) {
+        Ok(iter) => iter,
+        Err(read_err) => {
+            let path = Path::new(dir_path);
+            if archive_path::is_navigable_archive(path) && path.is_file() {
+                return list_archive_dirs(path, "");
+            }
+            if let Some(location) = archive_path::resolve(dir_path) {
+                return list_archive_dirs(&location.archive, &location.inner_dir);
+            }
+            return Err(read_err.into());
+        }
+    };
 
     let mut buffer = Vec::new();
-    for entry in read_dir(dir_path)? {
+    let mut entries = 0usize;
+    let mut scanned = 0usize;
+    for entry in dir_iter {
+        scanned += 1;
         let entry = match entry {
             Ok(entry) => entry,
             Err(e) => {
@@ -96,16 +123,54 @@ fn list_entries(dir_path: &str) -> Result<Vec<u8>> {
                 continue;
             }
         };
-        // `fs::metadata` follows a symbolic link, so a linked folder or book is listed as
-        // what it points at; `DirEntry::file_type` would report the link itself.
-        let metadata = match std::fs::metadata(entry.path()) {
-            Ok(metadata) => metadata,
+        // On Windows, `DirEntry::file_type` and `DirEntry::metadata` both read the
+        // `WIN32_FIND_DATAW` already fetched by `read_dir` (zero extra syscalls / SMB
+        // round-trips per entry). On Unix, `file_type` reads `d_type` to skip unsupported
+        // files before `metadata` (`lstat` for `mtime`); filesystems returning `DT_UNKNOWN`
+        // fall back to `lstat` inside `file_type`. Only symbolic links (including Windows
+        // NTFS directory junctions) follow the link via `fs::metadata`.
+        let entry_type = match entry.file_type() {
+            Ok(file_type) => file_type,
             Err(e) => {
-                log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
+                log::warn!("skipping entry '{file_name}': failed to read file type: {e}");
                 continue;
             }
         };
-        let file_type = metadata.file_type();
+
+        let (is_dir, metadata) = if entry_type.is_symlink() {
+            let metadata = match std::fs::metadata(entry.path()) {
+                Ok(metadata) => metadata,
+                Err(e) => {
+                    log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
+                    continue;
+                }
+            };
+            let target_type = metadata.file_type();
+            if target_type.is_dir() {
+                (true, metadata)
+            } else if target_type.is_file() && <dyn Container>::is_supported_format(&file_name) {
+                (false, metadata)
+            } else {
+                continue;
+            }
+        } else {
+            let is_dir = if entry_type.is_dir() {
+                true
+            } else if entry_type.is_file() && <dyn Container>::is_supported_format(&file_name) {
+                false
+            } else {
+                continue;
+            };
+            let metadata = match entry.metadata() {
+                Ok(metadata) => metadata,
+                Err(e) => {
+                    log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
+                    continue;
+                }
+            };
+            (is_dir, metadata)
+        };
+
         let last_modified = match metadata.modified() {
             Ok(modified) => modified,
             Err(e) => {
@@ -118,18 +183,14 @@ fn list_entries(dir_path: &str) -> Result<Vec<u8>> {
             .unwrap_or_default();
         let last_modified_timestamp_ms = since_epoch.as_millis() as u64;
 
-        if (file_type.is_file() && <dyn Container>::is_supported_format(&file_name))
-            || file_type.is_dir()
-        {
-            push_entry(
-                &mut buffer,
-                file_type.is_dir(),
-                &file_name,
-                last_modified_timestamp_ms,
-            );
-        }
+        push_entry(&mut buffer, is_dir, &file_name, last_modified_timestamp_ms);
+        entries += 1;
     }
-    Ok(buffer)
+    Ok(DirListing {
+        buffer,
+        entries,
+        scanned,
+    })
 }
 
 /// Encodes an archive's child folders in the same binary record format as the
@@ -145,12 +206,12 @@ fn list_entries(dir_path: &str) -> Result<Vec<u8>> {
 ///
 /// # Returns
 ///
-/// The encoded folder rows.
+/// A [`DirListing`] holding the encoded folder rows and counts.
 ///
 /// # Errors
 ///
 /// Returns an `Err` if the archive cannot be read.
-fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Vec<u8>> {
+fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<DirListing> {
     let last_modified_timestamp_ms = archive
         .metadata()
         .and_then(|metadata| metadata.modified())
@@ -163,10 +224,18 @@ fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Vec<u8>> {
         .unwrap_or_default();
 
     let mut buffer = Vec::new();
-    for name in archive_listing::list_child_dirs(archive, inner_dir)? {
-        push_entry(&mut buffer, true, &name, last_modified_timestamp_ms);
+    let dirs = archive_listing::list_child_dirs(archive, inner_dir)?;
+    let count = dirs.len();
+    for name in &dirs {
+        push_entry(&mut buffer, true, name, last_modified_timestamp_ms);
     }
-    Ok(buffer)
+    // Archive entry scanning is encapsulated inside `archive_listing`, so `scanned`
+    // mirrors the listed folder count here.
+    Ok(DirListing {
+        buffer,
+        entries: count,
+        scanned: count,
+    })
 }
 
 /// Appends one entry record to the binary listing buffer.
@@ -556,5 +625,117 @@ mod tests {
         }
 
         assert_eq!(buffer, expected);
+    }
+
+    // Sync test driving a current-thread runtime so `perf::capture::Recording` (which holds
+    // a `std::sync::MutexGuard`) is never held across an `.await` point.
+    #[test]
+    fn test_get_entries_in_dir_records_perf_span() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("subdir")).unwrap();
+        fs::File::create(temp_dir.path().join("book.zip")).unwrap();
+        fs::File::create(temp_dir.path().join("ignored.txt")).unwrap();
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let recording = crate::perf::capture::record();
+        let result = runtime
+            .block_on(get_entries_in_dir(
+                temp_dir.path().to_string_lossy().as_ref(),
+            ))
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+        assert_eq!(entries.len(), 2);
+
+        let lines = recording.lines("list_dir");
+        assert_eq!(lines.len(), 1);
+        assert!(
+            lines[0].contains("entries=2 scanned=3"),
+            "unexpected perf record: {}",
+            lines[0]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_dir_rejects_non_archive_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let pdf = temp_dir.path().join("book.pdf");
+        fs::File::create(&pdf).unwrap();
+
+        let result = get_entries_in_dir(pdf.to_string_lossy().as_ref()).await;
+        assert!(result.is_err());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn symlinks_to_unsupported_files_are_skipped() {
+        let temp_dir = TempDir::new().unwrap();
+        let target = temp_dir.path().join("notes.txt");
+        fs::File::create(&target).unwrap();
+        std::os::unix::fs::symlink(&target, temp_dir.path().join("link.txt")).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+        assert!(entries.is_empty());
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn windows_junctions_are_listed_and_broken_junctions_are_skipped() {
+        use std::process::Command;
+
+        let temp_dir = TempDir::new().unwrap();
+        let target_dir = temp_dir.path().join("real-folder");
+        let gone_dir = temp_dir.path().join("gone-folder");
+        fs::create_dir(&target_dir).unwrap();
+        fs::create_dir(&gone_dir).unwrap();
+
+        let valid_junction = temp_dir.path().join("linked-folder");
+        let broken_junction = temp_dir.path().join("broken-folder");
+        let make_junction = |link: &std::path::Path, target: &std::path::Path| {
+            let output = Command::new("cmd")
+                .args([
+                    "/C",
+                    "mklink",
+                    "/J",
+                    &link.to_string_lossy(),
+                    &target.to_string_lossy(),
+                ])
+                .output()
+                .expect("invoke mklink");
+            assert!(
+                output.status.success(),
+                "mklink /J failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        make_junction(&valid_junction, &target_dir);
+        make_junction(&broken_junction, &gone_dir);
+        fs::remove_dir(&gone_dir).unwrap();
+
+        let expected_modified = fs::metadata(&target_dir)
+            .unwrap()
+            .modified()
+            .unwrap()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+
+        let linked = entries
+            .iter()
+            .find(|e| e.name == "linked-folder")
+            .expect("valid junction should be listed");
+        assert!(linked.is_directory);
+        assert_eq!(linked.last_modified, expected_modified);
+        assert!(!entries.iter().any(|e| e.name == "broken-folder"));
     }
 }
