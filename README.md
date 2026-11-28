@@ -1,148 +1,81 @@
 # RookReader
 
-![build status](https://github.com/Rookro/RookReader/actions/workflows/build-app-actions.yml/badge.svg)
-[![Tauri](https://img.shields.io/badge/Tauri-24C8D8?logo=tauri&logoColor=fff)](https://v2.tauri.app/ja/)
+[![Latest Release](https://img.shields.io/github/v/release/Rookro/RookReader)](https://github.com/Rookro/RookReader/releases/latest)
+[![Build](https://github.com/Rookro/RookReader/actions/workflows/build-app-actions.yml/badge.svg?branch=develop)](https://github.com/Rookro/RookReader/actions/workflows/build-app-actions.yml)
+[![Full Validation](https://github.com/Rookro/RookReader/actions/workflows/full-validation.yml/badge.svg)](https://github.com/Rookro/RookReader/actions/workflows/full-validation.yml)
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-24C8D8?logo=tauri&logoColor=fff)](https://v2.tauri.app/)
 [![MUI](https://img.shields.io/badge/Material%20UI-007FFF?logo=mui&logoColor=fff)](https://mui.com/material-ui/)
 [![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org/)
-[![Rust](https://img.shields.io/badge/Rust-%23000000.svg?&logo=rust&logoColor=white)](https://rust-lang.org/)
-[![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-%23000000.svg?logo=rust&logoColor=white)](https://rust-lang.org/)
 
-[English](README.md) | [日本語](docs/ja_JP/README.md)
+[English](README.md) | [日本語](docs/ja_JP/README.md) · [User Guide](https://github.com/Rookro/RookReader/wiki/User-Guide) | [FAQ](https://github.com/Rookro/RookReader/wiki/FAQ-&-Troubleshooting) | [Developer Guide](https://github.com/Rookro/RookReader/wiki/Developer-Guide) | [Changelog](CHANGELOG.md)
 
-## Overview
+RookReader is a fast, modern, cross-platform desktop e-book and comic reader for **Windows** and **Linux**. Built around Japanese vertical writing and right-to-left reading, it opens comic archives, image folders, PDFs, and EPUBs directly while keeping your library organized on a visual bookshelf.
 
-RookReader is a modern, fast, cross-platform application for viewing e-book files in zip, rar, cbz, cbr, pdf, and epub formats. It is available for Windows and Linux environments.
-
-It supports image sequences (such as comics and magazines) contained in a directory, common archive files and PDF documents, and is specialized for the reading experience of Japanese novels and comics.
+![RookReader reader view](docs/images/reader_screenshot.png)
 
 ## Features
 
-* **Support for Japanese vertical writing (right-to-left binding):** Standard support for right-to-left page turning, which is natural when reading vertically written novels and manga.
-* **Cross-platform support:** Available on Windows and Linux.
-* **Supported file formats:**
-  * zip
-  * rar
-  * cbz (a ZIP comic archive)
-  * cbr (a RAR comic archive)
-  * pdf
-  * epub (Note: The novel reading function is an experimental feature.)
-* **Supported image formats** (pages inside archives and folders):
-  * png / apng
-  * jpeg
-  * gif
-  * webp
-  * avif
-* **Bookshelf Management:** Organize your library with multiple bookshelves and custom icons.
-* **Tagging System:** Categorize books using custom tags for easier navigation.
-* **Modern UI/UX:** An intuitive and easy-to-use interface built with React + TypeScript.
-* **High performance:** Near-native performance and memory efficiency with a Rust backend and the Tauri framework.
+- **Wide format support:** `zip`, `cbz`, `rar`, `cbr` (including folders inside archives), image directories, `pdf`, and `epub` *(experimental novel reader)*. Supports `png` / `apng`, `jpeg`, `gif`, `webp`, and `avif` page images.
+- **Built for Japanese comics & novels:** Right-to-left binding by default, with a per-book reading direction toggle for left-to-right titles.
+- **Comfortable page display:** Two-page spread view (with cover detection and spread pairing shift) and a high-detail magnifier (loupe) for small text and artwork.
+- **Continuous reading & resume:** Automatically open the next or previous volume at book boundaries, save named bookmarks, and resume from your reading history.
+- **Bookshelf organization:** Organize books into custom collections with icons, group volumes into ordered series, filter with colored tags, and search or sort your library.
+- **Fast & native:** Powered by a Rust + Tauri backend with background page preloading and sharp downscaling to avoid moiré.
+- **Polished desktop UX:** Light and Dark themes, English and Japanese UI, keyboard-friendly navigation, and built-in update checks.
 
 ## Installation
 
-Pre-built binaries of the application are available on the GitHub Releases page.
-Please follow the steps below to download and install the appropriate file for your environment.
-
-1. Go to the [latest release](https://github.com/Rookro/RookReader/releases/latest/) on the RookReader GitHub Releases page.
-1. Download the appropriate file for your operating system and follow the corresponding installation method.
+Pre-built binaries are available on the [GitHub Releases](https://github.com/Rookro/RookReader/releases/latest) page. Download the package for your platform:
 
 ### Windows
 
-| File Name | Installation Guide |
-| -- | -- |
-| RookReader_x.x.x_x64-setup.exe | Download and run the executable installer. |
+| File | Installation |
+| :--- | :--- |
+| `RookReader_x.x.x_x64-setup.exe` | Download and run the installer. |
 
-###  Linux
+### Linux
 
-| Distribution | Recommended File | Installation Guide |
-| -- | -- | -- |
-| Debian/Ubuntu/Mint | RookReader_x.x.x_amd64.deb | Double-click the file, or use `sudo dpkg -i <filename>` in the terminal. |
-| Fedora/RHEL/openSUSE | RookReader_x.x.x-x.x86_64.rpm | Use `sudo dnf install <filename>` (or `sudo yum install <filename>`) in the terminal. |
-| Arch Linux/Manjaro | - | See [Arch Linux Instructions](#arch-linux-instructions) below. |
-| Other Distributions (Universal) | RookReader_x.x.x_amd64.AppImage | Grant execution permission (`chmod +x <filename>`), then run the file. No installation required. |
+| Distribution | Package | Installation |
+| :--- | :--- | :--- |
+| Debian / Ubuntu / Mint | `RookReader_x.x.x_amd64.deb` | Double-click or run `sudo dpkg -i <filename>`. |
+| Fedora / RHEL / openSUSE | `RookReader_x.x.x-x.x86_64.rpm` | Run `sudo dnf install <filename>` (or `sudo yum install <filename>`). |
+| Arch Linux / Manjaro | `PKGBUILD` | See [Arch Linux Instructions](#arch-linux-instructions) below. |
+| Other distributions (Universal) | `RookReader_x.x.x_amd64.AppImage` | Run `chmod +x <filename>` and execute it directly. |
 
 #### Arch Linux Instructions
 
-For users running Arch Linux or Manjaro, you can build and install the package using the provided PKGBUILD.
+1. Download `PKGBUILD` from the `PKGBUILD/` directory of this repository.
+2. In the directory containing it, build and install the package:
 
-1. Download `PKGBUILD` from the `PKGBUILD/` directory in the repository.
-1. Open the terminal, navigate to the directory containing it, and run the following command to build and install the package:
-
-   ``` bash
+   ```bash
    makepkg -si
    ```
 
-## Usage
+> Having trouble launching on Linux (for example, WebKit2GTK dependencies or a blank AppImage window on Wayland)? See [FAQ & Troubleshooting](https://github.com/Rookro/RookReader/wiki/FAQ-&-Troubleshooting).
 
-### Reader
+## Quick Start
 
-![reader screenshot](docs/images/reader_screenshot.png)
+- **Open a book:** Click an archive, PDF, EPUB, or image folder in the left **File Navigator**, or drag and drop it onto the window.
+- **Turn pages:** Click (next) / right-click (previous), scroll the mouse wheel, or use the arrow keys and `Space`.
+- **Manage your library:** Switch to the **Bookshelf** from the top-left button to organize collections, series, and tags, or drop files directly onto the bookshelf to add them.
 
-* **Open a file:**
-  * Click an archive file or directory in the left pane (File Navigator).
-  * Drag and drop an archive file or directory onto the application window.
+![RookReader bookshelf view](docs/images/bookshelf_screenshot.png)
 
-* **Navigate through pages:**
-  * Click the image display area to turn to the next page, and right-click to turn to the previous page.
-  * You can also navigate through pages using the mouse wheel, the arrow keys, `Space`, `Page Up` / `Page Down`, and `Home` / `End`.
-  * Keyboard shortcuts switch the two-page spread and reading direction, show or hide the side pane, and add or remove a bookmark; the mouse back / forward buttons step through the books you opened.
-  * The side pane can be used from the keyboard as well: `F6` moves to it and back to the reader.
+> For the full list of keyboard shortcuts, two-page spread controls, magnifier (loupe), continuous reading, bookmarks, and all settings, see the **[User Guide](https://github.com/Rookro/RookReader/wiki/User-Guide)** on the Wiki.
 
-### Bookshelf
+## Documentation & Contributing
 
-![bookshelf screenshot](docs/images/bookshelf_screenshot.png)
+- **[User Guide](https://github.com/Rookro/RookReader/wiki/User-Guide)** — detailed usage, keyboard & mouse controls, bookshelf/series management, and settings reference.
+- **[FAQ & Troubleshooting](https://github.com/Rookro/RookReader/wiki/FAQ-&-Troubleshooting)** — data and log locations, settings recovery, and Linux tips.
+- **[Developer Guide](https://github.com/Rookro/RookReader/wiki/Developer-Guide)** — architecture overview, DevContainer & native setup, `sqlx` migrations, and testing.
+- **[Contributing Guide](CONTRIBUTING.md)** — Git Flow branching model, coding conventions, and pre-PR checks.
+- **[Changelog](CHANGELOG.md)** — release notes and recent changes.
 
-* **Bookshelves:**
-  * Create and manage custom bookshelves to organize your books.
-  * Add books from your local files to a bookshelf.
-  * Search by book name and sort by name or date.
+Bug reports and feature suggestions are welcome via [GitHub Issues](https://github.com/Rookro/RookReader/issues), and code contributions via Pull Requests.
 
-* **Tags:**
-  * Use tags to further categorize and filter your collection.
-
-
-## Development Environment
-
-This project recommends a development flow using DevContainer to minimize environmental differences between developers.
-
-> For a native (non-container) setup, the full list of prerequisites, and the checks to run before opening a Pull Request, see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Prerequisites
-
-*   Docker: Required for using container technology.
-*   VS Code (Visual Studio Code)
-*   VS Code Remote - Containers extension: An extension for using DevContainer in VS Code.
-
-### Setup
-
-1.  Clone this repository.
-
-    ```bash
-    git clone https://github.com/Rookro/RookReader.git
-    ```
-
-1.  Open the cloned folder in VS Code.
-1.  Click the "Reopen in Container" pop-up that appears in the bottom right of VS Code, or open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P) and select `Remote-Containers: Open Folder in Container...`.
-1.  Once the DevContainer has finished building and starting, a development environment with all the necessary dependencies (Rust, Node.js, etc.) will be available.
-
-### Build
-
-You can build within the DevContainer using the following commands.
-
-```bash
-npm install
-SQLX_OFFLINE=true npm run tauri build
-```
-
-## Contributing
-
-Contributions to this project are welcome.
-
-For bug reports and feature suggestions, please use GitHub Issues.
-For code contributions, please send a Pull Request.
-
-Before you start, please read our [Contributing Guide](CONTRIBUTING.md), which covers our Git Flow branching model, local setup, coding guidelines, and the checks to run before opening a Pull Request.
-
-## LICENSE
+## License
 
 This project is licensed under the [MIT License](LICENSE).
