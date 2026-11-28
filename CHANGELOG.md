@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Turning to the next page of a comic shows it sooner: the next pages are loaded ahead while you read. (#432)
 * A ZIP comic with many pages opens sooner, especially from a network drive. (#433)
 * Opening or closing the side pane shows the pages at once instead of loading them again, and pages appear sooner after resizing the window. (#434)
+* The loupe follows the mouse smoothly and shows sharp pages at every zoom level, without moiré at low zoom. On Linux it no longer leaves a blurry area after the page loads. (#435)
 
 ## [2.7.1] - 2026-11-16
 
