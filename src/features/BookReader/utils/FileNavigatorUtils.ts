@@ -21,6 +21,8 @@ import { andSearchBy } from "../../../utils/SearchUtils";
 export const andSearch = (entries: DirEntry[], query: string) =>
   andSearchBy(entries, query, (entry) => entry.name);
 
+const nameCollator = new Intl.Collator();
+
 /**
  * Comparison function for sorting an array of DirEntry objects based on a specified criterion and order.
  *
@@ -41,9 +43,9 @@ export const andSearch = (entries: DirEntry[], query: string) =>
 export const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
   switch (sortOrder) {
     case "name_asc":
-      return a.name.localeCompare(b.name);
+      return nameCollator.compare(a.name, b.name);
     case "name_desc":
-      return b.name.localeCompare(a.name);
+      return nameCollator.compare(b.name, a.name);
     case "date_asc":
       return a.lastModified - b.lastModified;
     case "date_desc":

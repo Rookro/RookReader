@@ -26,13 +26,20 @@ import {
   useRegisterSidePanel,
   useSidePaneFocus,
 } from "../../../SidePane/SidePaneFocusContext";
-import { loadDirectory, setSearchText } from "../../fileNavigatorSlice";
-import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
+import { isDirectoryReadyOrPending, loadDirectory, setSearchText } from "../../fileNavigatorSlice";
 import { useFileSelection } from "../../hooks/useFileSelection";
 import { openBook } from "../../slice";
 import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
 import { ItemRow } from "./ItemRow";
 import NavBar from "./NavBar";
+
+const selectSortedEntries = createSelector(
+  [
+    (state: RootState) => state.fileNavigator.entries,
+    (state: RootState) => state.settings.fileNavigator.sortOrder,
+  ],
+  (entries, sortOrder) => entries.slice().sort((a, b) => sortBy(a, b, sortOrder)),
+);
 
 const selectFileNavigatorState = createSelector(
   [
@@ -44,7 +51,6 @@ const selectFileNavigatorState = createSelector(
     fileNavigatorSettings,
     history: fileNavigator.history,
     historyIndex: fileNavigator.historyIndex,
-    entries: fileNavigator.entries,
     searchText: fileNavigator.searchText,
     isLoading: fileNavigator.isLoading,
     fileHistory: reader.history,
@@ -97,12 +103,12 @@ export default function FileListViewer() {
     fileNavigatorSettings,
     history,
     historyIndex,
-    entries,
     searchText,
     isLoading,
     fileHistory,
     fileHistoryIndex,
   } = useAppSelector(selectFileNavigatorState);
+  const sortedEntries = useAppSelector(selectSortedEntries);
   const dispatch = useAppDispatch();
   const store = useAppStore();
 
@@ -129,10 +135,8 @@ export default function FileListViewer() {
   const doubleClickIntervalMs = 200;
 
   const filteredSortedEntries = useMemo(() => {
-    return andSearch(entries, searchText)
-      .slice()
-      .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
-  }, [entries, fileNavigatorSettings.sortOrder, searchText]);
+    return andSearch(sortedEntries, searchText);
+  }, [sortedEntries, searchText]);
 
   const selectedIndex = useMemo(
     () =>
@@ -228,11 +232,11 @@ export default function FileListViewer() {
   }, [history, historyIndex, dispatch]);
 
   // Back and Forward only move the history, so this lists the folder they land on. A move
-  // into a folder already lists it; read without subscribing, so that listing settling
-  // does not run this again.
+  // into a folder already lists it, and returning from another tab already has its listing
+  // in the store; read without subscribing, so that listing settling does not run this again.
   useEffect(() => {
-    const { pendingPath } = store.getState().fileNavigator;
-    if (pendingPath !== null && pendingPath === history[historyIndex]) {
+    const currentPath = history[historyIndex];
+    if (!currentPath || isDirectoryReadyOrPending(store.getState().fileNavigator, currentPath)) {
       return;
     }
     refreshEntries();
@@ -250,15 +254,6 @@ export default function FileListViewer() {
     }
   }, !isLoading);
 
-  // What the watcher runs: the list stays on screen while the folder is read again.
-  const refreshInBackground = useCallback(() => {
-    const dirPath = history[historyIndex];
-    if (dirPath) {
-      return dispatch(loadDirectory({ dirPath, background: true }));
-    }
-  }, [history, historyIndex, dispatch]);
-
-  useDirectoryWatcher(history[historyIndex], refreshInBackground);
   useFileSelection(fileHistory, fileHistoryIndex, setSelectedName);
 
   const dirPath = history[historyIndex];

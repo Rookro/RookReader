@@ -17,6 +17,7 @@ import SideTabs from "../../SidePane/components/SideTabs";
 import { SidePaneFocusProvider } from "../../SidePane/SidePaneFocusContext";
 import type { SideTab } from "../../SidePane/types";
 import { useBookmarkSync } from "../hooks/useBookmarkSync";
+import { useFileNavigatorWatcher } from "../hooks/useFileNavigatorWatcher";
 import { ReaderInputProvider } from "../input/ReaderInputContext";
 import { openBook, restoreLastBook } from "../slice";
 import { holdWheelGesture } from "../utils/wheelGesture";
@@ -63,6 +64,7 @@ export interface BookReaderProps {
 export default function BookReader({ sx }: BookReaderProps) {
   const { t } = useTranslation();
   useBookmarkSync();
+  useFileNavigatorWatcher();
   const {
     activeView,
     isHidden,
