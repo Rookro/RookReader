@@ -4,12 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { configure, Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from "@zip.js/zip.js";
 
-const repoRoot = process.cwd();
-const assetsRoot = path.join(repoRoot, "scripts", "screenshots", "assets");
+const scriptsDir = import.meta.dirname;
+const repoRoot = path.resolve(scriptsDir, "..", "..");
+const assetsRoot = path.join(scriptsDir, "assets");
 const skipBuild = process.argv.includes("--skip-build");
-const isWindows = os.platform() === "win32";
-const binaryExt = isWindows ? ".exe" : "";
-const appBinary = path.join(repoRoot, "src-tauri", "target", "release", `rook-reader${binaryExt}`);
+const appBinary = path.join(repoRoot, "src-tauri", "target", "release", "rook-reader");
 
 /** Book manifests used to assemble temporary CBZ archives for each locale. */
 const LIBRARY_SPECS = {
@@ -73,35 +72,63 @@ async function buildTempLibraries(tmpRoot) {
 }
 
 /**
- * Runs a command synchronously and exits with an error if it fails.
+ * Runs a command synchronously and throws if it fails so `finally` cleanup still runs.
  *
  * @param {string} command - Executable name.
  * @param {string[]} args - Command arguments.
  * @param {NodeJS.ProcessEnv} env - Environment variables.
  */
-function runOrFail(command, args, env) {
+function runOrThrow(command, args, env) {
   const res = spawnSync(command, args, {
     cwd: repoRoot,
     stdio: "inherit",
-    shell: isWindows,
     env,
   });
-  if (res.status !== 0) {
-    process.exit(res.status ?? 1);
+  if (res.error) {
+    throw new Error(`Failed to spawn ${command}: ${res.error.message}`);
   }
+  if (res.status !== 0) {
+    throw new Error(`${command} ${args.join(" ")} exited with code ${res.status ?? 1}`);
+  }
+}
+
+/** Returns whether a live Wayland socket or X11 display is available. */
+function hasLiveDisplay() {
+  if (process.env.DISPLAY) return true;
+  if (process.env.WAYLAND_DISPLAY) {
+    const runtimeDir = process.env.XDG_RUNTIME_DIR || "/tmp";
+    const socketPath = path.isAbsolute(process.env.WAYLAND_DISPLAY)
+      ? process.env.WAYLAND_DISPLAY
+      : path.join(runtimeDir, process.env.WAYLAND_DISPLAY);
+    return existsSync(socketPath);
+  }
+  return false;
 }
 
 /** Returns whether `xvfb-run` is available for headless Linux capture. */
 function hasXvfb() {
-  if (os.platform() !== "linux") return false;
-  const res = spawnSync("which", ["xvfb-run"], { stdio: "ignore" });
-  return res.status === 0;
+  const res = spawnSync("xvfb-run", ["--help"], { stdio: "ignore" });
+  return !res.error && res.status === 0;
 }
 
 async function main() {
+  if (os.platform() !== "linux") {
+    throw new Error(
+      "Screenshot capture is only supported on Linux (host or DevContainer) due to XDG/window-size isolation.",
+    );
+  }
+
+  const liveDisplay = hasLiveDisplay();
+  const useXvfb = !liveDisplay;
+  if (useXvfb && !hasXvfb()) {
+    throw new Error(
+      "No active DISPLAY or Wayland socket found, and `xvfb-run` is not installed. Run inside a desktop session or install xvfb.",
+    );
+  }
+
   if (!skipBuild) {
     const e2eConfig = path.join(repoRoot, "src-tauri", "tauri.conf.e2e.json");
-    runOrFail(
+    runOrThrow(
       "npm",
       [
         "run",
@@ -117,28 +144,26 @@ async function main() {
       { ...process.env, VITE_E2E: "true", SQLX_OFFLINE: "true" },
     );
   } else if (!existsSync(appBinary)) {
-    console.error(`[Error] --skip-build was set, but ${appBinary} does not exist.`);
-    process.exit(1);
+    throw new Error(`--skip-build was set, but ${appBinary} does not exist.`);
   }
 
   const tmpRoot = mkdtempSync(path.join(os.tmpdir(), "rookreader-screenshots-"));
   try {
     await buildTempLibraries(tmpRoot);
 
-    const needsXvfb =
-      os.platform() === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY && hasXvfb();
-    const wdioConfig = path.join(repoRoot, "scripts", "screenshots", "wdio.conf.mjs");
-
+    const wdioConfig = path.join(scriptsDir, "wdio.conf.mjs");
     for (const lang of ["en", "ja"]) {
       const env = {
         ...process.env,
         CAPTURE_LANG: lang,
         CAPTURE_TMP_DIR: tmpRoot,
       };
-      if (needsXvfb) {
-        runOrFail("xvfb-run", ["--auto-servernum", "--", "npx", "wdio", "run", wdioConfig], env);
+      if (useXvfb) {
+        // Clear inactive WAYLAND_DISPLAY (e.g. DevContainer containerEnv) so GTK uses Xvfb's DISPLAY.
+        delete env.WAYLAND_DISPLAY;
+        runOrThrow("xvfb-run", ["--auto-servernum", "--", "npx", "wdio", "run", wdioConfig], env);
       } else {
-        runOrFail("npx", ["wdio", "run", wdioConfig], env);
+        runOrThrow("npx", ["wdio", "run", wdioConfig], env);
       }
     }
   } finally {
@@ -146,4 +171,7 @@ async function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(`[Error] ${err instanceof Error ? err.message : String(err)}`);
+  process.exit(1);
+});

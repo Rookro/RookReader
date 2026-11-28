@@ -1,5 +1,4 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 const lang = process.env.CAPTURE_LANG || "en";
@@ -8,10 +7,9 @@ if (!tmpRoot) {
   throw new Error("CAPTURE_TMP_DIR must be set (run via `npm run screenshots`).");
 }
 
-const repoRoot = process.cwd();
-const isWindows = os.platform() === "win32";
-const binaryExt = isWindows ? ".exe" : "";
-const appBinary = path.join(repoRoot, "src-tauri", "target", "release", `rook-reader${binaryExt}`);
+const scriptsDir = import.meta.dirname;
+const repoRoot = path.resolve(scriptsDir, "..", "..");
+const appBinary = path.join(repoRoot, "src-tauri", "target", "release", "rook-reader");
 
 const xdgBase = path.join(tmpRoot, `xdg-${lang}`);
 const xdgData = path.join(xdgBase, "data");
@@ -45,7 +43,7 @@ if (!process.env.WDIO_WORKER_ID) {
         },
         fileNavigator: {
           homeDirectory: libDir,
-          watchDirectory: false,
+          watchDirectoryChanges: false,
         },
         reader: {
           comic: {
@@ -62,7 +60,7 @@ if (!process.env.WDIO_WORKER_ID) {
 
 export const config = {
   runner: "local",
-  specs: [path.join(repoRoot, "scripts", "screenshots", "spec.mjs")],
+  specs: [path.join(scriptsDir, "spec.mjs")],
   maxInstances: 1,
   capabilities: [
     {

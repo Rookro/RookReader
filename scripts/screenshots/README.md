@@ -17,13 +17,13 @@ npm run screenshots
 
 This builds the E2E-enabled release binary (`--features e2e-test`, `VITE_E2E=true`), packs temporary `.cbz` sample books in `os.tmpdir()` from `assets/`, runs WebdriverIO with isolated `XDG_*` and `ROOKREADER_DATA_DIR` directories so your real library is untouched, saves the 4 PNGs, and deletes all temporary files.
 
-If `src-tauri/target/release/rook-reader` is already built with `--features e2e-test` and `VITE_E2E=true`, pass `--skip-build` to re-capture quickly:
+If `src-tauri/target/release/rook-reader` is already built with `--features e2e-test`, `VITE_E2E=true`, and `--config src-tauri/tauri.conf.e2e.json`, pass `--skip-build` to re-capture quickly:
 
 ```bash
 npm run screenshots -- --skip-build
 ```
 
-On headless Linux environments (without `DISPLAY` or `WAYLAND_DISPLAY`), `capture.mjs` automatically wraps `wdio` with `xvfb-run --auto-servernum` when available.
+On headless Linux environments (without an active `DISPLAY` or live Wayland socket, including DevContainers without Wayland forwarding), `capture.mjs` automatically wraps `wdio` with `xvfb-run --auto-servernum` when available.
 
 ## Sample Assets Provenance
 
