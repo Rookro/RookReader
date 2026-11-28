@@ -37,8 +37,9 @@ vi.mock("../utils/ImageUtils", () => ({
   fetchImageBlob: vi.fn(),
   fetchImagePreviewBlob: vi.fn(),
   createImageCacheItem: vi.fn(),
-  buildSinglePageLayout: vi.fn((firstImage) => ({
+  buildSinglePageLayout: vi.fn((firstImage, firstEntry) => ({
     firstImage,
+    firstEntry,
     isSpread: false,
     nextIndexIncrement: 1,
   })),
@@ -51,27 +52,32 @@ vi.mock("../utils/ImageUtils", () => ({
       cache: Map<string, ImageUtils.ImageCacheItem>,
       failures: ReadonlyMap<string, number>,
     ) => {
-      const firstImage = cache.get(entries[currentIndex]);
-      const firstError = firstImage ? undefined : failures.get(entries[currentIndex]);
+      const firstEntry = entries[currentIndex];
+      const firstImage = cache.get(firstEntry);
+      const firstError = firstImage ? undefined : failures.get(firstEntry);
       if (!firstImage && firstError === undefined) {
         return null;
       }
       if (!unit.isSpread) {
         return {
           firstImage,
+          firstEntry,
           firstError,
           isSpread: false,
           nextIndexIncrement: unit.nextIndexIncrement,
         };
       }
-      const secondImage = cache.get(entries[currentIndex + 1]);
-      const secondError = secondImage ? undefined : failures.get(entries[currentIndex + 1]);
+      const secondEntry = entries[currentIndex + 1];
+      const secondImage = cache.get(secondEntry);
+      const secondError = secondImage ? undefined : failures.get(secondEntry);
       if (!secondImage && secondError === undefined) {
         return null;
       }
       return {
         firstImage,
+        firstEntry,
         secondImage,
+        secondEntry,
         firstError,
         secondError,
         isSpread: true,
@@ -471,6 +477,7 @@ describe("useViewerController", () => {
     const mockLayout: ImageUtils.ViewLayout = {
       nextIndexIncrement: 1,
       isSpread: false,
+      firstEntry: "p1.jpg",
       firstImage: {
         url: "url1",
         width: 100,
@@ -507,6 +514,7 @@ describe("useViewerController", () => {
     });
 
     expect(result.current.displayedLayout).toEqual(mockLayout);
+    expect(result.current.reportedSize).toEqual(VIEWPORT);
   });
 
   // Verify that a spread on screen is published to the store for the page list

@@ -1,0 +1,171 @@
+import { vi } from "vitest";
+
+/** Fake 2D canvas context with spies for the operations the loupe performs. */
+export interface FakeCanvasContext {
+  /** Spy recording `drawImage` calls. */
+  drawImage: ReturnType<typeof vi.fn>;
+  /** Spy recording `clearRect` calls. */
+  clearRect: ReturnType<typeof vi.fn>;
+  /** Spy recording `setTransform` calls. */
+  setTransform: ReturnType<typeof vi.fn>;
+  /** Recorded value of `imageSmoothingEnabled`. */
+  imageSmoothingEnabled: boolean;
+  /** Recorded value of `imageSmoothingQuality`. */
+  imageSmoothingQuality: ImageSmoothingQuality;
+}
+
+/** Mutable bounds used to stub `getBoundingClientRect` on the reader container. */
+export interface MutableRect {
+  /** Left edge in CSS pixels. */
+  left: number;
+  /** Top edge in CSS pixels. */
+  top: number;
+  /** Width in CSS pixels. */
+  width: number;
+  /** Height in CSS pixels. */
+  height: number;
+}
+
+/** Handles for the jsdom stubs installed for loupe tests. */
+export interface LensStubs {
+  /** Fake 2D context returned by `HTMLCanvasElement.prototype.getContext("2d")`. */
+  ctx: FakeCanvasContext;
+  /** Spy on `window.requestAnimationFrame`. */
+  rafSpy: ReturnType<typeof vi.spyOn>;
+  /** Spy on `window.cancelAnimationFrame`. */
+  cancelRafSpy: ReturnType<typeof vi.spyOn>;
+  /** Invokes all queued animation-frame callbacks once. */
+  flushFrame: () => void;
+  /** Returns the IDs of currently queued animation-frame callbacks. */
+  pendingFrameIds: () => number[];
+  /** Invokes the active `ResizeObserver` callback, if one is observing. */
+  triggerResize: () => void;
+  /** Stubs `getBoundingClientRect` on `element` with mutable bounds and returns the rect and spy. */
+  mockReaderRect: (
+    element: Element,
+    initial?: MutableRect,
+  ) => {
+    rect: MutableRect;
+    spy: ReturnType<typeof vi.spyOn>;
+  };
+  /** Restores all global stubs and spies installed by {@link installLensStubs}. */
+  restore: () => void;
+}
+
+/**
+ * Installs jsdom stubs for the canvas context, animation frames, image natural size,
+ * `ResizeObserver`, and `window.devicePixelRatio`. Call `restore()` in `afterEach`.
+ */
+export function installLensStubs(): LensStubs {
+  const ctx: FakeCanvasContext = {
+    drawImage: vi.fn(),
+    clearRect: vi.fn(),
+    setTransform: vi.fn(),
+    imageSmoothingEnabled: false,
+    imageSmoothingQuality: "low",
+  };
+
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(((type: string) =>
+    type === "2d"
+      ? (ctx as unknown as CanvasRenderingContext2D)
+      : null) as HTMLCanvasElement["getContext"]);
+
+  let nextFrameId = 1;
+  const pending = new Map<number, FrameRequestCallback>();
+  const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+    const id = nextFrameId++;
+    pending.set(id, cb);
+    return id;
+  });
+  const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+    pending.delete(id);
+  });
+
+  const flushFrame = () => {
+    const queued = [...pending.values()];
+    pending.clear();
+    for (const cb of queued) {
+      cb(performance.now());
+    }
+  };
+
+  const pendingFrameIds = () => [...pending.keys()];
+
+  vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(400);
+  vi.spyOn(HTMLImageElement.prototype, "naturalHeight", "get").mockReturnValue(800);
+  vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+
+  const originalResizeObserver = global.ResizeObserver;
+  let resizeCallback: ResizeObserverCallback | null = null;
+  let resizeObserverInstance: ResizeObserver | null = null;
+  global.ResizeObserver = class StubResizeObserver implements ResizeObserver {
+    constructor(cb: ResizeObserverCallback) {
+      resizeCallback = cb;
+      resizeObserverInstance = this;
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {
+      if (resizeObserverInstance === this) {
+        resizeCallback = null;
+        resizeObserverInstance = null;
+      }
+    }
+  };
+
+  const triggerResize = () => {
+    if (resizeCallback && resizeObserverInstance) {
+      resizeCallback([], resizeObserverInstance);
+    }
+  };
+
+  const originalDprDescriptor = Object.getOwnPropertyDescriptor(window, "devicePixelRatio");
+  Object.defineProperty(window, "devicePixelRatio", {
+    configurable: true,
+    writable: true,
+    value: 2,
+  });
+
+  const mockReaderRect = (
+    element: Element,
+    initial: MutableRect = { left: 100, top: 50, width: 1000, height: 800 },
+  ) => {
+    const rect: MutableRect = { ...initial };
+    const spy = vi.spyOn(element, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          right: rect.left + rect.width,
+          bottom: rect.top + rect.height,
+          x: rect.left,
+          y: rect.top,
+          toJSON: () => {},
+        }) as DOMRect,
+    );
+    return { rect, spy };
+  };
+
+  const restore = () => {
+    global.ResizeObserver = originalResizeObserver;
+    if (originalDprDescriptor) {
+      Object.defineProperty(window, "devicePixelRatio", originalDprDescriptor);
+    } else {
+      Reflect.deleteProperty(window, "devicePixelRatio");
+    }
+    vi.restoreAllMocks();
+  };
+
+  return {
+    ctx,
+    rafSpy,
+    cancelRafSpy,
+    flushFrame,
+    pendingFrameIds,
+    triggerResize,
+    mockReaderRect,
+    restore,
+  };
+}

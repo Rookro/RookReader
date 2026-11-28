@@ -214,16 +214,16 @@ pub async fn get_image(
     Ok(image_response(&image))
 }
 
-/// Retrieves an image from the currently open container at its full size.
+/// Retrieves an image from the currently open container fitted for the loupe at `zoom`.
 ///
-/// What the loupe shows. A page fitted to the viewport is exactly the wrong one there:
-/// the loupe draws it magnified, so what it would show is an upscale of what is already
-/// on screen.
+/// The lens draws the page at the display size times `zoom`, so at zoom 1 it reuses the
+/// viewer's cached page and avoids browser downscale moiré.
 ///
 /// # Arguments
 ///
 /// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
+/// * `zoom` - The loupe's magnification factor.
 /// * `state` - The managed container state.
 ///
 /// # Returns
@@ -237,12 +237,18 @@ pub async fn get_image(
 /// * The book it names is not the book that is open.
 /// * The requested image entry cannot be found or decoded.
 #[tauri::command]
-pub async fn get_image_full(
+pub async fn get_image_magnified(
     path: &str,
     entry_name: &str,
+    zoom: f64,
     state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
-    log::debug!("Get the full-size binary of {} in {}", entry_name, path);
+    log::debug!(
+        "Get the magnified binary of {} in {} at zoom {}",
+        entry_name,
+        path,
+        zoom
+    );
 
     let service = {
         let state_lock = state.read().await;
@@ -250,7 +256,7 @@ pub async fn get_image_full(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let image = service.page_full(entry_name).await?;
+    let image = service.page_magnified(entry_name, zoom).await?;
 
     Ok(image_response(&image))
 }
@@ -601,7 +607,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_loupe_reads_the_page_at_its_full_size() {
+    async fn the_loupe_reads_the_page_at_the_display_size_times_the_zoom() {
         let app = tauri::test::mock_app();
         let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
         set_display_size(400, 300, app.state()).await.unwrap();
@@ -609,22 +615,25 @@ mod tests {
         let displayed = get_image("dummy_book_id", "test1.png", 1, app.state())
             .await
             .expect("read the displayed page");
-        let magnified = get_image_full("dummy_book_id", "test1.png", app.state())
+        let zoomed = get_image_magnified("dummy_book_id", "test1.png", 1.5, app.state())
             .await
-            .expect("read the full-size page");
+            .expect("read the magnified page");
+        let whole = get_image_magnified("dummy_book_id", "test1.png", 4.0, app.state())
+            .await
+            .expect("read the full page");
 
-        // Magnifying the fitted page would only upscale what is already on screen.
         assert_eq!(page_size(displayed), (400, 300));
-        assert_eq!(page_size(magnified), (800, 600));
+        assert_eq!(page_size(zoomed), (600, 450));
+        assert_eq!(page_size(whole), (800, 600));
     }
 
     #[tokio::test]
-    async fn a_stale_path_is_refused_a_full_size_page() {
+    async fn a_stale_path_is_refused_a_magnified_page() {
         let app = tauri::test::mock_app();
         let _watch = manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
         // The loupe is held open across a book switch as readily as any other request.
-        let result = get_image_full("stale_book_id", "test1.png", app.state()).await;
+        let result = get_image_magnified("stale_book_id", "test1.png", 2.0, app.state()).await;
         assert!(matches!(result, Err(Error::BookChanged(_))));
     }
 

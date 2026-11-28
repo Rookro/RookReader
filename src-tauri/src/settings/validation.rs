@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{SettingsValidationViolation, ViolationKind};
+use super::{SettingsValidationViolation, ViolationKind, LOUPE_ZOOM_MAX, LOUPE_ZOOM_MIN};
 
 /// The authoritative numeric bound for one settings leaf, used to produce structured
 /// validation violations.
@@ -49,8 +49,8 @@ const FIELD_BOUNDS: &[FieldBound] = &[
     FieldBound {
         path: "reader.comic.loupe.zoom",
         integer: false,
-        min: 1.0,
-        max: 100.0,
+        min: LOUPE_ZOOM_MIN,
+        max: LOUPE_ZOOM_MAX,
     },
     FieldBound {
         path: "reader.comic.loupe.radius",

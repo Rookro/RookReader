@@ -503,19 +503,28 @@ impl PageService {
             .await
     }
 
-    /// Reads one page at its full size, for the loupe.
+    /// Reads one page fitted to the display box times `zoom`, for the loupe.
     ///
-    /// The loupe draws the page magnified, so a page fitted to the viewport is exactly
-    /// the wrong one: what it would show is an upscale of what is already on screen.
+    /// The lens draws the page at 1:1 wherever the screen does, and never past the page's
+    /// stored size or the height cap. At zoom 1 this hits the viewer's cached page.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The entry name, as listed by the container.
+    /// * `zoom` - The loupe's magnification factor.
+    ///
+    /// # Returns
+    ///
+    /// The page, fitted to `Pipeline::magnified_fit(zoom)`.
     ///
     /// # Errors
     ///
     /// As [`PageService::page`].
-    pub async fn page_full(&self, entry: &str) -> Result<Arc<Image>> {
+    pub async fn page_magnified(&self, entry: &str, zoom: f64) -> Result<Arc<Image>> {
         self.fetch(
             entry,
             Priority::Foreground,
-            self.shared.pipeline().full_fit(),
+            self.shared.pipeline().magnified_fit(zoom),
             None,
         )
         .await
@@ -544,13 +553,13 @@ impl PageService {
         }
     }
 
-    /// [`PageService::page_full`] for a test running on a plain thread.
+    /// [`PageService::page_magnified`] for a test running on a plain thread.
     #[cfg(test)]
-    pub fn page_full_blocking(&self, entry: &str) -> Result<Arc<Image>> {
+    pub fn page_magnified_blocking(&self, entry: &str, zoom: f64) -> Result<Arc<Image>> {
         match self.enqueue(
             entry,
             Priority::Foreground,
-            self.shared.pipeline().full_fit(),
+            self.shared.pipeline().magnified_fit(zoom),
             None,
         )? {
             Fetch::Cached(image) => Ok(image),
@@ -1272,13 +1281,18 @@ mod tests {
 
     use super::*;
 
-    /// A real 4x2 PNG. Pages travel as encoded bytes and are decoded by the pipeline.
-    fn page_bytes() -> Vec<u8> {
+    /// A real PNG of `width` x `height`. Pages travel as encoded bytes and are decoded by the pipeline.
+    fn page_bytes_sized(width: u32, height: u32) -> Vec<u8> {
         let mut buffer = Vec::new();
-        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(width, height))
             .write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
             .expect("failed to encode the page fixture");
         buffer
+    }
+
+    /// A real 4x2 PNG. Pages travel as encoded bytes and are decoded by the pipeline.
+    fn page_bytes() -> Vec<u8> {
+        page_bytes_sized(4, 2)
     }
 
     fn entries(count: usize) -> Vec<String> {
@@ -2117,21 +2131,31 @@ mod tests {
         assert!(service.cached(&names[0]).is_some());
     }
 
-    /// A book whose reader counts how often the bytes are read.
-    fn counting_container(names: &[String], reads: Arc<AtomicUsize>) -> MockContainer {
+    /// A book whose reader serves `bytes` and counts how often the bytes are read.
+    fn counting_container_of(
+        names: &[String],
+        reads: Arc<AtomicUsize>,
+        bytes: Vec<u8>,
+    ) -> MockContainer {
         let mut container = MockContainer::new();
         container.expect_get_entries().return_const(names.to_vec());
         container.expect_max_readers().return_const(usize::MAX);
         container.expect_open_reader().returning(move || {
             let reads = reads.clone();
+            let bytes = bytes.clone();
             let mut reader = MockPageReader::new();
             reader.expect_read_page().returning(move |_| {
                 reads.fetch_add(1, Ordering::SeqCst);
-                Ok(PageData::Encoded(page_bytes()))
+                Ok(PageData::Encoded(bytes.clone()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
         container
+    }
+
+    /// A book whose reader counts how often the bytes are read.
+    fn counting_container(names: &[String], reads: Arc<AtomicUsize>) -> MockContainer {
+        counting_container_of(names, reads, page_bytes())
     }
 
     /// One book, and a reader that counts how often the bytes are read.
@@ -2179,11 +2203,78 @@ mod tests {
         let displayed = service
             .page_blocking(&names[0], Priority::Foreground)
             .unwrap();
-        let magnified = service.page_full_blocking(&names[0]).unwrap();
+        let magnified = service.page_magnified_blocking(&names[0], 2.0).unwrap();
 
         assert_eq!((displayed.width, displayed.height), (4, 2));
         assert_eq!((magnified.width, magnified.height), (4, 2));
         assert_eq!(reads.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn the_lens_at_zoom_one_is_the_displayed_page() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let service = counting_service(&names, reads.clone());
+        service.set_display_size(Some(Fit {
+            width: 2,
+            height: 2,
+        }));
+
+        let displayed = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        let lens = service.page_magnified_blocking(&names[0], 1.0).unwrap();
+
+        assert_eq!(
+            (lens.width, lens.height),
+            (displayed.width, displayed.height)
+        );
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn the_lens_is_served_from_the_cache_after_a_width_only_resize() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        // An 8x4 page, so zoom 2 really shrinks it: a box that passed it through whole would
+        // answer 8x4 and fail this.
+        let service = service(counting_container_of(
+            &names,
+            reads.clone(),
+            page_bytes_sized(8, 4),
+        ));
+
+        // Height-bound in both boxes: 4x2 in the lens at zoom 2, either way.
+        service.set_display_size(Some(Fit {
+            width: 100,
+            height: 1,
+        }));
+        let before = service.page_magnified_blocking(&names[0], 2.0).unwrap();
+        service.set_display_size(Some(Fit {
+            width: 50,
+            height: 1,
+        }));
+        let after = service.page_magnified_blocking(&names[0], 2.0).unwrap();
+        assert_eq!((before.width, before.height), (4, 2));
+        assert_eq!((after.width, after.height), (4, 2));
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn a_higher_zoom_reads_the_page_again() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let service = counting_service(&names, reads.clone());
+        service.set_display_size(Some(Fit {
+            width: 1,
+            height: 1,
+        }));
+
+        let two = service.page_magnified_blocking(&names[0], 2.0).unwrap();
+        let three = service.page_magnified_blocking(&names[0], 3.0).unwrap();
+        assert_eq!((two.width, two.height), (2, 1));
+        assert_eq!((three.width, three.height), (3, 2));
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
     }
 
     #[test]
@@ -2411,7 +2502,7 @@ mod tests {
         let displayed = service
             .page_blocking(&names[0], Priority::Foreground)
             .unwrap();
-        let magnified = service.page_full_blocking(&names[0]).unwrap();
+        let magnified = service.page_magnified_blocking(&names[0], 2.0).unwrap();
 
         // Magnifying the fitted page would only upscale what is already on screen.
         assert_eq!((displayed.width, displayed.height), (2, 1));
@@ -2420,7 +2511,7 @@ mod tests {
     }
 
     #[test]
-    fn a_decoded_page_is_fitted_for_the_viewer_and_whole_for_the_loupe() {
+    fn a_decoded_page_is_fitted_for_the_viewer_and_for_the_lens() {
         let names = entries(1);
         let mut container = MockContainer::new();
         container.expect_get_entries().return_const(names.clone());
@@ -2429,7 +2520,7 @@ mod tests {
             let mut reader = MockPageReader::new();
             reader.expect_read_page().returning(|_| {
                 Ok(PageData::Decoded(image::DynamicImage::ImageRgb8(
-                    image::RgbImage::new(4, 2),
+                    image::RgbImage::new(8, 4),
                 )))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
@@ -2443,11 +2534,13 @@ mod tests {
         let displayed = service
             .page_blocking(&names[0], Priority::Foreground)
             .unwrap();
-        let magnified = service.page_full_blocking(&names[0]).unwrap();
+        let zoomed = service.page_magnified_blocking(&names[0], 2.0).unwrap();
+        let whole = service.page_magnified_blocking(&names[0], 100.0).unwrap();
 
         assert_eq!((displayed.width, displayed.height), (2, 1));
-        assert_eq!((magnified.width, magnified.height), (4, 2));
-        for image in [&displayed, &magnified] {
+        assert_eq!((zoomed.width, zoomed.height), (4, 2));
+        assert_eq!((whole.width, whole.height), (8, 4));
+        for image in [&displayed, &zoomed, &whole] {
             assert_eq!(
                 image::guess_format(&image.data).unwrap(),
                 image::ImageFormat::Png
@@ -3039,7 +3132,7 @@ mod tests {
         let loupe = {
             let service = service.clone();
             let entry = names[1].clone();
-            thread::spawn(move || service.page_full_blocking(&entry))
+            thread::spawn(move || service.page_magnified_blocking(&entry, 2.0))
         };
         eventually("loupe request to queue", || queued(&service) == 1);
 

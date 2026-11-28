@@ -4,12 +4,14 @@ import * as binaryApi from "../../../bindings/binaryApi";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 import {
+  buildSinglePageLayout,
   buildUnitChain,
   buildUnitLayout,
   createBlobUrl,
   createImageCacheItem,
   detectCoverPresence,
   fetchImageBlob,
+  fetchImageMagnifiedBlob,
   fetchImagePreviewBlob,
   ImageCacheItem,
   revokeCacheItemUrls,
@@ -80,7 +82,9 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, noFailures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         secondImage: portraitNext,
+        secondEntry: "p1",
         firstError: undefined,
         secondError: undefined,
         isSpread: true,
@@ -103,6 +107,7 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, noFailures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         firstError: undefined,
         isSpread: false,
         nextIndexIncrement: 1,
@@ -117,7 +122,9 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, failures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         secondImage: undefined,
+        secondEntry: "p1",
         firstError: undefined,
         secondError: ErrorCode.image,
         isSpread: true,
@@ -140,6 +147,8 @@ describe("ImageUtils", () => {
       );
       expect(layout?.firstError).toBe(ErrorCode.entryNotFound);
       expect(layout?.secondError).toBe(ErrorCode.image);
+      expect(layout?.firstEntry).toBe("p0");
+      expect(layout?.secondEntry).toBe("p1");
     });
 
     // A page that came out of its preview is on screen, so it has nothing to explain
@@ -150,7 +159,17 @@ describe("ImageUtils", () => {
         buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, failures),
       ).toEqual({
         firstImage: portrait,
+        firstEntry: "p0",
         firstError: undefined,
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    it("records the entry on a degraded single-page layout", () => {
+      expect(buildSinglePageLayout(portrait, "a.jpg")).toEqual({
+        firstImage: portrait,
+        firstEntry: "a.jpg",
         isSpread: false,
         nextIndexIncrement: 1,
       });
@@ -356,6 +375,36 @@ describe("ImageUtils", () => {
         new CommandError(ErrorCode.image, "fetch failed"),
       );
       await expect(fetchImageBlob("path", "file", 1)).rejects.toBeInstanceOf(CommandError);
+    });
+  });
+
+  describe("fetchImageMagnifiedBlob", () => {
+    it("returns undefined without calling the backend when path or entry is empty", async () => {
+      expect(await fetchImageMagnifiedBlob("", "file", 2)).toBeUndefined();
+      expect(await fetchImageMagnifiedBlob("path", "", 2)).toBeUndefined();
+      expect(binaryApi.getImageMagnified).not.toHaveBeenCalled();
+    });
+
+    it("forwards the zoom to getImageMagnified and parses the image", async () => {
+      const buffer = new ArrayBuffer(9);
+      const view = new DataView(buffer);
+      view.setUint32(0, 600);
+      view.setUint32(4, 450);
+      vi.mocked(binaryApi.getImageMagnified).mockResolvedValue(buffer);
+
+      const result = await fetchImageMagnifiedBlob("path", "file", 1.5);
+
+      expect(binaryApi.getImageMagnified).toHaveBeenCalledWith("path", "file", 1.5);
+      expect(result).toBeInstanceOf(Image);
+      expect(result?.width).toBe(600);
+      expect(result?.height).toBe(450);
+    });
+
+    it("rejects with the command error when getImageMagnified fails", async () => {
+      vi.mocked(binaryApi.getImageMagnified).mockRejectedValue(
+        new CommandError(ErrorCode.image, "magnify failed"),
+      );
+      await expect(fetchImageMagnifiedBlob("path", "file", 2)).rejects.toBeInstanceOf(CommandError);
     });
   });
 

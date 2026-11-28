@@ -19,17 +19,21 @@ export async function getImage(
 }
 
 /**
- * Fetches a page at its full size, for the loupe.
+ * Fetches a page fitted to the reader's viewport times `zoom`, for the loupe.
  *
- * Every other page arrives fitted to the reader's viewport. The loupe draws a page
- * magnified, so a fitted one would only be an upscale of what is already on screen.
+ * At zoom 1 this hits the viewer's cached page and avoids browser downscale moiré.
  *
  * @param path The path of the container file.
  * @param entryName The name of the image entry.
+ * @param zoom The loupe's magnification factor.
  * @returns A promise that resolves to the image data as an ArrayBuffer.
  */
-export async function getImageFull(path: string, entryName: string): Promise<ArrayBuffer> {
-  return runBinaryCommand("get_image_full", { path, entryName });
+export async function getImageMagnified(
+  path: string,
+  entryName: string,
+  zoom: number,
+): Promise<ArrayBuffer> {
+  return runBinaryCommand("get_image_magnified", { path, entryName, zoom });
 }
 
 /**

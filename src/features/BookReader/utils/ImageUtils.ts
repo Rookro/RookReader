@@ -1,4 +1,4 @@
-import { getImage, getImageFull, getImagePreview } from "../../../bindings/binaryApi";
+import { getImage, getImageMagnified, getImagePreview } from "../../../bindings/binaryApi";
 import type { ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 
@@ -52,8 +52,12 @@ export const revokeCacheItemUrls = (item: ImageCacheItem) => {
 export interface ViewLayout {
   /** First image in the layout. */
   firstImage?: ImageCacheItem;
+  /** Entry name of the first page in the layout. */
+  firstEntry?: string;
   /** Second image in the layout. */
   secondImage?: ImageCacheItem;
+  /** Entry name of the second page in the layout, for a spread. */
+  secondEntry?: string;
   /**
    * Why the first page has no image, when it failed. Carried in the layout so the reader
    * sees the reason in that page's own place, which is what says *which* page failed.
@@ -115,24 +119,26 @@ export const fetchImageBlob = async (
 };
 
 /**
- * Fetches a page at its full size, for the loupe.
+ * Fetches a page fitted to the reader's viewport times `zoom`, for the loupe.
  *
  * The pair of {@link fetchImageBlob}: that one asks for the page fitted to the reader's
- * viewport, this one for the page whole.
+ * viewport, this one for the same box scaled by `zoom`.
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
+ * @param zoom The loupe's magnification factor.
  * @returns The fetched image, or undefined when there was nothing to ask for.
  * @throws {CommandError} When the backend could not produce the image.
  */
-export const fetchImageFullBlob = async (
+export const fetchImageMagnifiedBlob = async (
   containerPath: string,
   entryName: string,
+  zoom: number,
 ): Promise<Image | undefined> => {
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  const response = await getImageFull(containerPath, entryName);
+  const response = await getImageMagnified(containerPath, entryName, zoom);
   return new Image(response);
 };
 
@@ -198,10 +204,15 @@ export const createImageCacheItem = (image: Image, isPreview: boolean): ImageCac
  * Builds a single-page (non-spread) layout for an already-loaded first image.
  *
  * @param firstImage The cached first image to display alone.
+ * @param firstEntry The entry name of the first page.
  * @returns A single-page ViewLayout that advances by one index.
  */
-export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout => ({
+export const buildSinglePageLayout = (
+  firstImage: ImageCacheItem,
+  firstEntry: string,
+): ViewLayout => ({
   firstImage,
+  firstEntry,
   isSpread: false,
   nextIndexIncrement: 1,
 });
@@ -237,19 +248,27 @@ export const buildUnitLayout = (
 ): ViewLayout | null => {
   // An image beats a reason: a page that came out of its preview is on screen, whatever
   // became of the request for the full one.
-  const firstImage = cache.get(entries[currentIndex]);
-  const firstError = firstImage ? undefined : failures.get(entries[currentIndex]);
+  const firstEntry = entries[currentIndex];
+  const firstImage = cache.get(firstEntry);
+  const firstError = firstImage ? undefined : failures.get(firstEntry);
 
   if (!firstImage && firstError === undefined) {
     return null;
   }
 
   if (!unit.isSpread) {
-    return { firstImage, firstError, isSpread: false, nextIndexIncrement: unit.nextIndexIncrement };
+    return {
+      firstImage,
+      firstEntry,
+      firstError,
+      isSpread: false,
+      nextIndexIncrement: unit.nextIndexIncrement,
+    };
   }
 
-  const secondImage = cache.get(entries[currentIndex + 1]);
-  const secondError = secondImage ? undefined : failures.get(entries[currentIndex + 1]);
+  const secondEntry = entries[currentIndex + 1];
+  const secondImage = cache.get(secondEntry);
+  const secondError = secondImage ? undefined : failures.get(secondEntry);
 
   if (!secondImage && secondError === undefined) {
     return null;
@@ -257,7 +276,9 @@ export const buildUnitLayout = (
 
   return {
     firstImage,
+    firstEntry,
     secondImage,
+    secondEntry,
     firstError,
     secondError,
     isSpread: true,
