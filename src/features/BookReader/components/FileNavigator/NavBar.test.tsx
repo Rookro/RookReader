@@ -478,4 +478,89 @@ describe("FileNavigator/NavBar", () => {
       expect(screen.getByRole("combobox")).toBeInTheDocument();
     });
   });
+
+  describe("initial folder loading", () => {
+    it("loads the home directory on mount when historyIndex is -1", async () => {
+      const { homeDir } = await import("@tauri-apps/api/path");
+      vi.mocked(homeDir).mockResolvedValueOnce("/resolved/home");
+
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.fileNavigator.homeDirectory = "";
+
+      renderWithProviders(<NavBar />, { preloadedState });
+
+      await waitFor(() => {
+        expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
+          dirPath: "/resolved/home",
+        });
+      });
+    });
+
+    it("does not clear searchText or loadDirectory when mounting on an empty loaded folder", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.fileNavigator.history = ["/empty"];
+      preloadedState.fileNavigator.historyIndex = 0;
+      preloadedState.fileNavigator.loadedPath = "/empty";
+      preloadedState.fileNavigator.entries = [];
+      preloadedState.fileNavigator.searchText = "abc";
+
+      renderWithProviders(<NavBar />, { preloadedState });
+
+      expect(FileNavigatorSlice.setSearchText).not.toHaveBeenCalled();
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+    });
+
+    it("does not overwrite a folder opened while homeDir() is resolving", async () => {
+      const { homeDir } = await import("@tauri-apps/api/path");
+      let resolveHome: (path: string) => void = () => {};
+      vi.mocked(homeDir).mockReturnValueOnce(
+        new Promise<string>((resolve) => {
+          resolveHome = resolve;
+        }),
+      );
+
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.fileNavigator.homeDirectory = "";
+
+      const { store } = renderWithProviders(<NavBar />, { preloadedState });
+      await waitFor(() => expect(homeDir).toHaveBeenCalledTimes(1));
+
+      // Dispatch directoryPathOpened and resolve homeDir within the same act so the
+      // post-await store.getState().fileNavigator.historyIndex !== -1 guard is exercised.
+      await act(async () => {
+        store.dispatch(FileNavigatorSlice.directoryPathOpened("/restored"));
+        resolveHome("/system/home");
+        await Promise.resolve();
+      });
+
+      expect(FileNavigatorSlice.setSearchText).not.toHaveBeenCalled();
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalledWith({
+        dirPath: "/system/home",
+      });
+    });
+
+    it("ignores homeDir() resolution after unmount", async () => {
+      const { homeDir } = await import("@tauri-apps/api/path");
+      let resolveHome: (path: string) => void = () => {};
+      vi.mocked(homeDir).mockReturnValueOnce(
+        new Promise<string>((resolve) => {
+          resolveHome = resolve;
+        }),
+      );
+
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.fileNavigator.homeDirectory = "";
+
+      const { unmount } = renderWithProviders(<NavBar />, { preloadedState });
+      await waitFor(() => expect(homeDir).toHaveBeenCalledTimes(1));
+
+      unmount();
+      await act(async () => {
+        resolveHome("/system/home");
+        await Promise.resolve();
+      });
+
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+    });
+  });
 });
